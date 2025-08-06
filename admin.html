@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Portfolio</title>
+    <link rel="stylesheet" href="admin-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal active">
+        <div class="modal-content">
+            <h2>Login Admin</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+            <p class="login-hint">Hint: username: admin, password: admin123</p>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="dashboard">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-content">
+                <h1><i class="fas fa-cog"></i> Admin Panel</h1>
+                <div class="header-actions">
+                    <a href="index.html" target="_blank" class="btn-secondary">
+                        <i class="fas fa-external-link-alt"></i> Lihat Website
+                    </a>
+                    <button id="logoutBtn" class="btn-danger">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="admin-nav">
+            <button class="nav-tab active" data-tab="portfolio">
+                <i class="fas fa-images"></i> Portfolio
+            </button>
+            <button class="nav-tab" data-tab="products">
+                <i class="fas fa-shopping-bag"></i> Digital Produk
+            </button>
+            <button class="nav-tab" data-tab="settings">
+                <i class="fas fa-cog"></i> Pengaturan
+            </button>
+        </nav>
+
+        <!-- Portfolio Management -->
+        <section id="portfolioTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Kelola Portfolio</h2>
+                <button id="addPortfolioBtn" class="btn-primary">
+                    <i class="fas fa-plus"></i> Tambah Karya
+                </button>
+            </div>
+            
+            <div class="portfolio-list" id="portfolioList">
+                <!-- Portfolio items will be loaded here -->
+            </div>
+        </section>
+
+        <!-- Products Management -->
+        <section id="productsTab" class="tab-content">
+            <div class="section-header">
+                <h2>Kelola Digital Produk</h2>
+                <button id="addProductBtn" class="btn-primary">
+                    <i class="fas fa-plus"></i> Tambah Produk
+                </button>
+            </div>
+            
+            <div class="products-list" id="productsList">
+                <!-- Products will be loaded here -->
+            </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="settingsTab" class="tab-content">
+            <div class="section-header">
+                <h2>Pengaturan Website</h2>
+            </div>
+            
+            <div class="settings-form">
+                <div class="form-group">
+                    <label for="siteName">Nama Website:</label>
+                    <input type="text" id="siteName" value="Portfolio Ilustrator">
+                </div>
+                
+                <div class="form-group">
+                    <label for="heroTitle">Judul Hero:</label>
+                    <input type="text" id="heroTitle" value="Ilustrator & Desainer">
+                </div>
+                
+                <div class="form-group">
+                    <label for="heroSubtitle">Subtitle Hero:</label>
+                    <textarea id="heroSubtitle">Menciptakan karya visual yang menginspirasi dan bermakna</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="whatsappNumber">Nomor WhatsApp:</label>
+                    <input type="text" id="whatsappNumber" value="6281234567890">
+                </div>
+                
+                <div class="form-group">
+                    <label for="aboutText">Tentang Saya:</label>
+                    <textarea id="aboutText" rows="5">Saya adalah seorang ilustrator dan desainer grafis dengan passion untuk menciptakan karya visual yang bermakna...</textarea>
+                </div>
+                
+                <button id="saveSettingsBtn" class="btn-primary">
+                    <i class="fas fa-save"></i> Simpan Pengaturan
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Portfolio Modal -->
+    <div id="portfolioModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="portfolioModalTitle">Tambah Karya Portfolio</h3>
+                <button class="close-btn" onclick="closeModal('portfolioModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="portfolioForm">
+                <div class="form-group">
+                    <label for="portfolioTitle">Judul Karya:</label>
+                    <input type="text" id="portfolioTitle" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="portfolioDescription">Deskripsi:</label>
+                    <textarea id="portfolioDescription" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="portfolioImage">URL Gambar:</label>
+                    <input type="url" id="portfolioImage" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="portfolioSize">Ukuran Tampilan:</label>
+                    <select id="portfolioSize">
+                        <option value="normal">Normal</option>
+                        <option value="wide">Lebar (2x)</option>
+                        <option value="tall">Tinggi (2x)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="portfolioCategory">Kategori:</label>
+                    <select id="portfolioCategory">
+                        <option value="illustration">Ilustrasi Digital</option>
+                        <option value="character">Character Design</option>
+                        <option value="editorial">Editorial</option>
+                        <option value="branding">Branding</option>
+                        <option value="concept">Concept Art</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('portfolioModal')">Batal</button>
+                    <button type="submit" class="btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="productModalTitle">Tambah Produk Digital</h3>
+                <button class="close-btn" onclick="closeModal('productModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="productForm">
+                <div class="form-group">
+                    <label for="productName">Nama Produk:</label>
+                    <input type="text" id="productName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productDescription">Deskripsi:</label>
+                    <textarea id="productDescription" rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productPrice">Harga (Rp):</label>
+                    <input type="number" id="productPrice" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productImage">URL Gambar:</label>
+                    <input type="url" id="productImage" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productType">Tipe Produk:</label>
+                    <select id="productType">
+                        <option value="brush">Custom Brush</option>
+                        <option value="font">Font</option>
+                        <option value="action">Action Photoshop</option>
+                        <option value="texture">Texture Pack</option>
+                        <option value="template">Template</option>
+                        <option value="other">Lainnya</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productStatus">Status:</label>
+                    <select id="productStatus">
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('productModal')">Batal</button>
+                    <button type="submit" class="btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin-script.js"></script>
+</body>
+</html>

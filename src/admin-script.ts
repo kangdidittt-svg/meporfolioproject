@@ -4,6 +4,7 @@ import {
   ProductItem, 
   SiteSettings, 
   User,
+  SidebarState,
   ThumbnailSize,
   CropperConfig,
   MessageType,
@@ -48,6 +49,7 @@ class AdminApp {
   private isInitialized = false;
   private thumbnailSizes: ThumbnailSize[] = [];
   private tempImageData: { [key: string]: string } = {};
+  private sidebarAutoHide = false;
 
   // DOM Elements Cache
   private elements: {
@@ -80,6 +82,7 @@ class AdminApp {
     this.handlePreviewItem = this.handlePreviewItem.bind(this);
     this.handleLogin = this.handleLogin.bind(this);
     this.handleLogout = this.handleLogout.bind(this);
+    this.handleSidebarToggle = this.handleSidebarToggle.bind(this);
     this.showProductModal = this.showProductModal.bind(this);
     this.closeProductModal = this.closeProductModal.bind(this);
     this.showPortfolioModal = this.showPortfolioModal.bind(this);
@@ -215,6 +218,18 @@ class AdminApp {
 
     // Event delegation for dynamic buttons
     this.setupEventDelegation();
+
+    // Customer modal handlers
+    this.setupCustomerModalHandlers();
+
+    // Sidebar toggle handler
+    const sidebarToggle = DOMUtils.getElementById<HTMLButtonElement>('sidebarToggle');
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener('click', this.handleSidebarToggle.bind(this));
+    }
+
+    // Sidebar auto-hide hover handlers
+    this.setupSidebarHoverHandlers();
   }
 
   /**
@@ -452,6 +467,8 @@ class AdminApp {
    * Remove additional image
    */
   public removeAdditionalImage(index: number): void {
+    if (!this.requireAuth()) return;
+    
     const preview = DOMUtils.getElementById<HTMLElement>(`additionalPreview${index}`);
     const urlInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImageUrl${index}`);
     const fileInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImage${index}`);
@@ -489,6 +506,10 @@ class AdminApp {
       this.loadSettings(),
       this.updateStatistics()
     ]);
+
+    // Update dashboard stats and customer table
+    this.updateDashboardStats();
+    this.renderCustomerTable();
 
     PerformanceUtils.measure('Admin Content Rendering', 'admin-render-start');
   }
@@ -721,6 +742,91 @@ class AdminApp {
    }
 
   /**
+   * Handle sidebar toggle
+   */
+  private setupSidebarHoverHandlers(): void {
+    const sidebar = document.querySelector('.admin-sidebar') as HTMLElement;
+    const main = document.querySelector('.admin-main') as HTMLElement;
+    
+    if (sidebar && main) {
+      sidebar.addEventListener('mouseenter', () => {
+        if (this.sidebarAutoHide) {
+          DOMUtils.addClass(sidebar, 'sidebar-visible');
+          DOMUtils.addClass(main, 'sidebar-visible');
+        }
+      });
+      
+      sidebar.addEventListener('mouseleave', () => {
+        if (this.sidebarAutoHide) {
+          DOMUtils.removeClass(sidebar, 'sidebar-visible');
+          DOMUtils.removeClass(main, 'sidebar-visible');
+        }
+      });
+    }
+  }
+
+  private handleSidebarToggle(): void {
+    const sidebar = document.querySelector('.admin-sidebar') as HTMLElement;
+    const main = document.querySelector('.admin-main') as HTMLElement;
+    const toggleBtn = DOMUtils.getElementById('sidebarToggle');
+    
+    if (sidebar && main && toggleBtn) {
+      // Cycle through states: normal -> collapsed -> auto-hide -> normal
+      if (!sidebar.classList.contains('collapsed') && !this.sidebarAutoHide) {
+        // Normal -> Collapsed
+        DOMUtils.addClass(sidebar, 'collapsed');
+        DOMUtils.addClass(main, 'sidebar-collapsed');
+        DOMUtils.removeClass(toggleBtn, 'auto-hide-active');
+      } else if (sidebar.classList.contains('collapsed') && !this.sidebarAutoHide) {
+        // Collapsed -> Auto-hide
+        DOMUtils.removeClass(sidebar, 'collapsed');
+        DOMUtils.addClass(sidebar, 'auto-hide');
+        DOMUtils.removeClass(main, 'sidebar-collapsed');
+        DOMUtils.addClass(main, 'auto-hide');
+        DOMUtils.addClass(toggleBtn, 'auto-hide-active');
+        this.sidebarAutoHide = true;
+      } else {
+        // Auto-hide -> Normal
+        DOMUtils.removeClass(sidebar, 'auto-hide');
+        DOMUtils.removeClass(sidebar, 'sidebar-visible');
+        DOMUtils.removeClass(main, 'auto-hide');
+        DOMUtils.removeClass(main, 'sidebar-visible');
+        DOMUtils.removeClass(toggleBtn, 'auto-hide-active');
+        this.sidebarAutoHide = false;
+      }
+      
+      // Save sidebar state
+      SafeStorage.set(StorageKeys.SIDEBAR_STATE, {
+        collapsed: sidebar.classList.contains('collapsed'),
+        autoHide: this.sidebarAutoHide
+      });
+    }
+  }
+
+  private restoreSidebarState(): void {
+    const defaultState: SidebarState = { collapsed: false, autoHide: false };
+    const savedState = SafeStorage.get(StorageKeys.SIDEBAR_STATE, defaultState) as SidebarState;
+    
+    if (savedState && (savedState.autoHide || savedState.collapsed)) {
+      const sidebar = document.querySelector('.admin-sidebar') as HTMLElement;
+      const main = document.querySelector('.admin-main') as HTMLElement;
+      const toggleBtn = DOMUtils.getElementById('sidebarToggle');
+      
+      if (sidebar && main && toggleBtn) {
+        if (savedState.autoHide) {
+          DOMUtils.addClass(sidebar, 'auto-hide');
+          DOMUtils.addClass(main, 'auto-hide');
+          DOMUtils.addClass(toggleBtn, 'auto-hide-active');
+          this.sidebarAutoHide = true;
+        } else if (savedState.collapsed) {
+          DOMUtils.addClass(sidebar, 'collapsed');
+          DOMUtils.addClass(main, 'sidebar-collapsed');
+        }
+      }
+    }
+  }
+
+  /**
    * Check authentication status
    */
   private checkAuthStatus(): void {
@@ -764,6 +870,28 @@ class AdminApp {
     this.renderPortfolioItems();
     this.renderProductItems();
     this.loadSettings();
+    this.restoreSidebarState();
+  }
+
+  // Authentication Guards
+
+  /**
+   * Check if user is authenticated
+   */
+  private isAuthenticated(): boolean {
+    return this.currentUser !== null;
+  }
+
+  /**
+   * Require authentication for admin functions
+   */
+  private requireAuth(): boolean {
+    if (!this.isAuthenticated()) {
+      this.showMessage('Anda harus login terlebih dahulu untuk mengakses fitur ini', 'error');
+      this.showLogin();
+      return false;
+    }
+    return true;
   }
 
   // Event Handlers
@@ -773,6 +901,9 @@ class AdminApp {
    */
   private handleTabSwitch(event: Event, element: HTMLElement): void {
     event.preventDefault();
+    
+    // Check authentication first
+    if (!this.requireAuth()) return;
     
     const targetTab = element.dataset.tab as TabName;
     if (!targetTab) return;
@@ -801,6 +932,9 @@ class AdminApp {
    */
   private async handleFormSubmit(event: Event): Promise<void> {
     event.preventDefault();
+    
+    // Check authentication first
+    if (!this.requireAuth()) return;
     
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -1005,6 +1139,9 @@ class AdminApp {
    * Handle image upload
    */
   private async handleImageUpload(event: Event, element: HTMLInputElement): Promise<void> {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     const file = element.files?.[0];
     if (!file) return;
 
@@ -1059,6 +1196,9 @@ class AdminApp {
    * Handle cropper save
    */
   private async handleCropperSave(): Promise<void> {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     if (!this.cropper) return;
 
     try {
@@ -1086,6 +1226,9 @@ class AdminApp {
    * Handle delete item
    */
   private async handleDeleteItem(event: Event, element: HTMLElement): Promise<void> {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     const id = parseInt(element.dataset.id || '0');
     const type = element.dataset.type as 'portfolio' | 'product';
     
@@ -1116,6 +1259,9 @@ class AdminApp {
    * Handle edit item
    */
   private async handleEditItem(event: Event, element: HTMLElement): Promise<void> {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     const id = parseInt(element.dataset.id || '0');
     const type = element.dataset.type as 'portfolio' | 'product';
     
@@ -1724,6 +1870,9 @@ class AdminApp {
    * Handle background image upload
    */
   private async handleBackgroundUpload(event: Event): Promise<void> {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     
@@ -1789,6 +1938,9 @@ class AdminApp {
    * Remove background image
    */
   private async removeBackgroundImage(): Promise<void> {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     try {
       // Remove from settings
       delete this.siteSettings.backgroundImage;
@@ -2067,6 +2219,9 @@ class AdminApp {
    * Show product modal
    */
   private showProductModal(): void {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     const modal = DOMUtils.getElementById<HTMLElement>('productModal');
     if (modal) {
       modal.style.display = 'flex';
@@ -2095,6 +2250,9 @@ class AdminApp {
    * Show portfolio modal
    */
   private showPortfolioModal(): void {
+    // Check authentication first
+    if (!this.requireAuth()) return;
+    
     const modal = DOMUtils.getElementById<HTMLElement>('portfolioModal');
     if (modal) {
       modal.style.display = 'flex';
@@ -2181,6 +2339,8 @@ class AdminApp {
    * Preview portfolio image from URL
    */
   public previewPortfolioImageUrl(): void {
+    if (!this.requireAuth()) return;
+    
     const input = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
     const url = input?.value.trim();
     
@@ -2196,6 +2356,8 @@ class AdminApp {
    * Preview product image from URL
    */
   public previewProductImageUrl(): void {
+    if (!this.requireAuth()) return;
+    
     const input = DOMUtils.getElementById<HTMLInputElement>('productImage');
     const url = input?.value.trim();
     
@@ -2211,6 +2373,8 @@ class AdminApp {
    * Clear portfolio image
    */
   public clearPortfolioImage(): void {
+    if (!this.requireAuth()) return;
+    
     const input = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
     const preview = DOMUtils.getElementById('portfolioImagePreview');
     
@@ -2224,6 +2388,8 @@ class AdminApp {
    * Clear product image
    */
   public clearProductImage(): void {
+    if (!this.requireAuth()) return;
+    
     const input = DOMUtils.getElementById<HTMLInputElement>('productImage');
     const preview = DOMUtils.getElementById('productImagePreview');
     
@@ -2284,6 +2450,263 @@ class AdminApp {
       preview.style.display = 'block';
     }
   }
+
+  // Dashboard Functions
+  private updateDashboardStats(): void {
+    const totalPortfolio = this.portfolioData.length;
+    const totalProducts = this.productsData.length;
+    const soldProducts = this.getSoldProductsCount();
+    const monthlyRevenue = this.getMonthlyRevenue();
+    
+    this.updateStatElement('totalPortfolio', totalPortfolio);
+    this.updateStatElement('totalProducts', totalProducts);
+    this.updateStatElement('soldProducts', soldProducts);
+    this.updateStatElement('monthlyRevenue', monthlyRevenue);
+  }
+
+  private getSoldProductsCount(): number {
+    const customers = this.getCustomersData();
+    return customers.length;
+  }
+
+  private getMonthlyRevenue(): number {
+    const customers = this.getCustomersData();
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    return customers
+      .filter(customer => {
+        const purchaseDate = new Date(customer.date);
+        return purchaseDate.getMonth() === currentMonth && 
+               purchaseDate.getFullYear() === currentYear;
+      })
+      .reduce((total, customer) => total + customer.amount, 0);
+  }
+
+  private getCustomersData(): any[] {
+    return SafeStorage.get(StorageKeys.CUSTOMERS_DATA, []);
+  }
+
+  private saveCustomersData(customers: any[]): void {
+    SafeStorage.set(StorageKeys.CUSTOMERS_DATA, customers);
+  }
+
+  public showCustomerModal(): void {
+    if (!this.requireAuth()) return;
+    
+    const modal = document.getElementById('customerModal');
+    if (modal) {
+      modal.classList.add('active');
+      this.resetCustomerForm();
+    }
+  }
+
+  public closeCustomerModal(): void {
+    if (!this.requireAuth()) return;
+    
+    const modal = document.getElementById('customerModal');
+    if (modal) {
+      modal.classList.remove('active');
+      this.resetCustomerForm();
+    }
+  }
+
+  private resetCustomerForm(): void {
+    const form = document.getElementById('customerForm') as HTMLFormElement;
+    if (form) {
+      form.reset();
+      // Set default date to today
+      const dateInput = document.getElementById('customerDate') as HTMLInputElement;
+      if (dateInput && dateInput.type === 'date') {
+        const today = new Date().toISOString().split('T')[0];
+        if (today) {
+          dateInput.setAttribute('value', today);
+        }
+      }
+    }
+  }
+
+  private async handleCustomerSubmit(formData: FormData): Promise<void> {
+    if (!this.requireAuth()) return;
+    
+    try {
+      const customerData = {
+        id: this.generateId(),
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string || '',
+        product: formData.get('product') as string,
+        amount: parseInt(formData.get('amount') as string),
+        date: formData.get('date') as string,
+        status: formData.get('status') as string,
+        createdAt: new Date().toISOString()
+      };
+
+      const customers = this.getCustomersData();
+      customers.push(customerData);
+      this.saveCustomersData(customers);
+      
+      this.renderCustomerTable();
+      this.updateDashboardStats();
+      this.closeCustomerModal();
+      this.showMessage('Customer berhasil ditambahkan!', 'success');
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      this.showMessage('Gagal menyimpan customer!', 'error');
+    }
+  }
+
+  private renderCustomerTable(): void {
+    const tableBody = document.querySelector('#customerTable tbody');
+    if (!tableBody) return;
+
+    const customers = this.getCustomersData();
+    tableBody.innerHTML = '';
+
+    customers.forEach(customer => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${customer.name}</td>
+        <td>${customer.email}</td>
+        <td>Rp ${customer.amount.toLocaleString('id-ID')}</td>
+        <td>${customer.product}</td>
+        <td>${new Date(customer.date).toLocaleDateString('id-ID')}</td>
+        <td><span class="status-badge ${customer.status}">${this.getStatusLabel(customer.status)}</span></td>
+        <td class="customer-actions-cell">
+          <button class="action-btn-small edit" onclick="editCustomer(${customer.id})">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="action-btn-small delete" onclick="deleteCustomer(${customer.id})">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    this.updateCustomerStats();
+  }
+
+  private getStatusLabel(status: string): string {
+    const labels: { [key: string]: string } = {
+      'new': 'Customer Baru',
+      'returning': 'Customer Berulang',
+      'vip': 'VIP Customer'
+    };
+    return labels[status] || status;
+  }
+
+  private updateCustomerStats(): void {
+    const customers = this.getCustomersData();
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    const totalCustomers = customers.length;
+    const newThisMonth = customers.filter(customer => {
+      const createdDate = new Date(customer.createdAt || customer.date);
+      return createdDate.getMonth() === currentMonth && 
+             createdDate.getFullYear() === currentYear;
+    }).length;
+    const returningCustomers = customers.filter(customer => customer.status === 'returning').length;
+    
+    this.updateStatElement('totalCustomers', totalCustomers);
+    this.updateStatElement('newCustomersMonth', newThisMonth);
+    this.updateStatElement('returningCustomers', returningCustomers);
+  }
+
+  public deleteCustomer(id: number): void {
+    if (!this.requireAuth()) return;
+    
+    this.showConfirmDialog(
+      'Hapus Customer',
+      'Apakah Anda yakin ingin menghapus customer ini?'
+    ).then(confirmed => {
+      if (confirmed) {
+        const customers = this.getCustomersData();
+        const updatedCustomers = customers.filter(customer => customer.id !== id);
+        this.saveCustomersData(updatedCustomers);
+        this.renderCustomerTable();
+        this.updateDashboardStats();
+        this.showMessage('Customer berhasil dihapus!', 'success');
+      }
+    });
+  }
+
+  public exportCustomers(): void {
+    if (!this.requireAuth()) return;
+    
+    const customers = this.getCustomersData();
+    if (customers.length === 0) {
+      this.showMessage('Tidak ada data customer untuk diekspor!', 'warning');
+      return;
+    }
+
+    const csvContent = this.convertToCSV(customers);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.showMessage('Data customer berhasil diekspor!', 'success');
+  }
+
+  private convertToCSV(customers: any[]): string {
+    const headers = ['Nama', 'Email', 'Telepon', 'Produk', 'Total Pembelian', 'Tanggal', 'Status'];
+    const csvRows = [headers.join(',')];
+    
+    customers.forEach(customer => {
+      const row = [
+        `"${customer.name}"`,
+        `"${customer.email}"`,
+        `"${customer.phone || ''}"`,
+        `"${customer.product}"`,
+        customer.amount,
+        `"${customer.date}"`,
+        `"${this.getStatusLabel(customer.status)}""`
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    return csvRows.join('\n');
+  }
+
+  private setupCustomerModalHandlers(): void {
+    const modal = document.getElementById('customerModal');
+    const closeBtn = document.getElementById('closeCustomerModal');
+    const cancelBtn = document.getElementById('cancelCustomerModal');
+    const form = document.getElementById('customerForm');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closeCustomerModal());
+    }
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => this.closeCustomerModal());
+    }
+
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          this.closeCustomerModal();
+        }
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form as HTMLFormElement);
+        await this.handleCustomerSubmit(formData);
+      });
+    }
+  }
 }
 
 // Initialize the admin application when DOM is ready
@@ -2300,6 +2723,10 @@ if (document.readyState === 'loading') {
 (window as any).previewProductImageUrl = () => adminApp.previewProductImageUrl();
 (window as any).clearPortfolioImage = () => adminApp.clearPortfolioImage();
 (window as any).clearProductImage = () => adminApp.clearProductImage();
+(window as any).showCustomerModal = () => adminApp.showCustomerModal();
+(window as any).closeCustomerModal = () => adminApp.closeCustomerModal();
+(window as any).deleteCustomer = (id: number) => adminApp.deleteCustomer(id);
+(window as any).exportCustomers = () => adminApp.exportCustomers();
 
 // Export for potential external use
 export default adminApp;

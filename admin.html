@@ -32,36 +32,139 @@
 
     <!-- Admin Dashboard -->
     <div id="adminDashboard" class="dashboard">
-        <!-- Header -->
-        <header class="admin-header">
-            <div class="header-content">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
                 <h1><i class="fas fa-cog"></i> Admin Panel</h1>
-                <div class="header-actions">
-                    <a href="index.html" target="_blank" class="btn-secondary">
-                        <i class="fas fa-external-link-alt"></i> Lihat Website
-                    </a>
-                    <button id="logoutBtn" class="btn-danger">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <nav class="admin-nav">
+                <button class="nav-tab active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> 
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-tab" data-tab="portfolio">
+                    <i class="fas fa-images"></i> 
+                    <span>Portfolio</span>
+                </button>
+                <button class="nav-tab" data-tab="products">
+                    <i class="fas fa-shopping-bag"></i> 
+                    <span>Digital Produk</span>
+                </button>
+                <button class="nav-tab" data-tab="customers">
+                    <i class="fas fa-users"></i> 
+                    <span>Database Pembeli</span>
+                </button>
+                <button class="nav-tab" data-tab="settings">
+                    <i class="fas fa-cog"></i> 
+                    <span>Pengaturan</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="admin-main">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="header-content">
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="header-actions">
+                        <a href="index.html" target="_blank" class="header-icon-btn website" title="Lihat Website">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        <button id="logoutBtn" class="header-icon-btn logout" title="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+        <!-- Dashboard -->
+        <section id="dashboardTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Dashboard</h2>
+            </div>
+            
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-images"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalPortfolio">0</h3>
+                        <p>Total Portfolio</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-shopping-bag"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalProducts">0</h3>
+                        <p>Total Produk</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="productsSold">0</h3>
+                        <p>Produk Terjual</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="monthlyRevenue">Rp 0</h3>
+                        <p>Pendapatan Bulan Ini</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Access -->
+            <div class="quick-access">
+                <h3>Quick Access</h3>
+                <div class="quick-actions">
+                    <button class="quick-btn" onclick="switchToTab('portfolio'); showPortfolioModal();">
+                        <i class="fas fa-plus"></i>
+                        <span>Tambah Portfolio</span>
+                    </button>
+                    <button class="quick-btn" onclick="switchToTab('products'); showProductModal();">
+                        <i class="fas fa-plus"></i>
+                        <span>Tambah Produk</span>
+                    </button>
+                    <button class="quick-btn" onclick="switchToTab('customers');">
+                        <i class="fas fa-users"></i>
+                        <span>Lihat Pembeli</span>
+                    </button>
+                    <button class="quick-btn" onclick="switchToTab('settings');">
+                        <i class="fas fa-cog"></i>
+                        <span>Pengaturan</span>
                     </button>
                 </div>
             </div>
-        </header>
-
-        <!-- Navigation Tabs -->
-        <nav class="admin-nav">
-            <button class="nav-tab active" data-tab="portfolio">
-                <i class="fas fa-images"></i> Portfolio
-            </button>
-            <button class="nav-tab" data-tab="products">
-                <i class="fas fa-shopping-bag"></i> Digital Produk
-            </button>
-            <button class="nav-tab" data-tab="settings">
-                <i class="fas fa-cog"></i> Pengaturan
-            </button>
-        </nav>
+            
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+                <h3>Aktivitas Terbaru</h3>
+                <div class="activity-list" id="activityList">
+                    <!-- Activity items will be loaded here -->
+                </div>
+            </div>
+        </section>
 
         <!-- Portfolio Management -->
-        <section id="portfolioTab" class="tab-content active">
+        <section id="portfolioTab" class="tab-content">
             <div class="section-header">
                 <h2>Kelola Portfolio</h2>
                 <button id="addPortfolioBtn" class="btn-primary">
@@ -85,6 +188,77 @@
             
             <div class="products-list" id="productsList">
                 <!-- Products will be loaded here -->
+            </div>
+        </section>
+
+        <!-- Customer Database -->
+        <section id="customersTab" class="tab-content">
+            <div class="section-header">
+                <h2>Database Pembeli</h2>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="exportCustomers()">
+                        <i class="fas fa-download"></i> Export Data
+                    </button>
+                    <button class="btn-primary" onclick="showAddCustomerModal()">
+                        <i class="fas fa-plus"></i> Tambah Pembeli
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search and Filter -->
+            <div class="customers-controls">
+                <div class="search-box">
+                    <input type="text" id="customerSearch" placeholder="Cari berdasarkan nama atau email...">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="filter-controls">
+                    <select id="customerFilter">
+                        <option value="all">Semua Pembeli</option>
+                        <option value="recent">Pembeli Baru (30 hari)</option>
+                        <option value="frequent">Pembeli Berulang</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Customer Statistics -->
+            <div class="customer-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total Pembeli:</span>
+                    <span class="stat-value" id="totalCustomers">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Pembeli Baru Bulan Ini:</span>
+                    <span class="stat-value" id="newCustomersThisMonth">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Pembeli Berulang:</span>
+                    <span class="stat-value" id="repeatCustomers">0</span>
+                </div>
+            </div>
+            
+            <!-- Customer List -->
+            <div class="customers-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>Email</th>
+                            <th>Total Pembelian</th>
+                            <th>Produk Terakhir</th>
+                            <th>Tanggal Terakhir</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customersTableBody">
+                        <!-- Customer data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination" id="customersPagination">
+                <!-- Pagination will be loaded here -->
             </div>
         </section>
 
@@ -485,6 +659,66 @@
             </div>
         </div>
     </div>
+
+    <!-- Customer Modal -->
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="customerModalTitle">Tambah Customer</h3>
+                <button id="closeCustomerModal" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="customerForm" data-type="customer">
+                <div class="form-group">
+                    <label for="customerName">Nama Customer:</label>
+                    <input type="text" id="customerName" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerEmail">Email:</label>
+                    <input type="email" id="customerEmail" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerPhone">No. Telepon:</label>
+                    <input type="tel" id="customerPhone" name="phone">
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerProduct">Produk Dibeli:</label>
+                    <input type="text" id="customerProduct" name="product" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerAmount">Total Pembelian (Rp):</label>
+                    <input type="number" id="customerAmount" name="amount" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerDate">Tanggal Pembelian:</label>
+                    <input type="date" id="customerDate" name="date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerStatus">Status:</label>
+                    <select id="customerStatus" name="status">
+                        <option value="new">Customer Baru</option>
+                        <option value="returning">Customer Berulang</option>
+                        <option value="vip">VIP Customer</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelCustomerModal">Batal</button>
+                    <button type="submit" class="btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+        </div> <!-- End admin-main -->
+    </div> <!-- End dashboard -->
 
     <script type="module" src="dist/admin-script.min.js"></script>
 </body>

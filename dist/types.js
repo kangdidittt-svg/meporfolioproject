@@ -4,5 +4,7 @@ export var StorageKeys;
     StorageKeys["PRODUCTS_DATA"] = "productsData";
     StorageKeys["SITE_SETTINGS"] = "siteSettings";
     StorageKeys["USER_DATA"] = "userData";
+    StorageKeys["CUSTOMERS_DATA"] = "customers";
+    StorageKeys["SIDEBAR_STATE"] = "sidebarState";
 })(StorageKeys || (StorageKeys = {}));
 //# sourceMappingURL=types.js.map

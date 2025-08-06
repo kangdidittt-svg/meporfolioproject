@@ -11,6 +11,7 @@ class AdminApp {
         this.isInitialized = false;
         this.thumbnailSizes = [];
         this.tempImageData = {};
+        this.sidebarAutoHide = false;
         this.elements = {};
         this.siteSettings = this.getDefaultSettings();
         this.thumbnailSizes = this.getDefaultThumbnailSizes();
@@ -26,6 +27,7 @@ class AdminApp {
         this.handlePreviewItem = this.handlePreviewItem.bind(this);
         this.handleLogin = this.handleLogin.bind(this);
         this.handleLogout = this.handleLogout.bind(this);
+        this.handleSidebarToggle = this.handleSidebarToggle.bind(this);
         this.showProductModal = this.showProductModal.bind(this);
         this.closeProductModal = this.closeProductModal.bind(this);
         this.showPortfolioModal = this.showPortfolioModal.bind(this);
@@ -107,6 +109,12 @@ class AdminApp {
         this.setupProductModalHandlers();
         this.setupPortfolioModalHandlers();
         this.setupEventDelegation();
+        this.setupCustomerModalHandlers();
+        const sidebarToggle = DOMUtils.getElementById('sidebarToggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', this.handleSidebarToggle.bind(this));
+        }
+        this.setupSidebarHoverHandlers();
     }
     setupEventDelegation() {
         document.addEventListener('click', (event) => {
@@ -273,6 +281,8 @@ class AdminApp {
         }
     }
     removeAdditionalImage(index) {
+        if (!this.requireAuth())
+            return;
         const preview = DOMUtils.getElementById(`additionalPreview${index}`);
         const urlInput = DOMUtils.getElementById(`additionalImageUrl${index}`);
         const fileInput = DOMUtils.getElementById(`additionalImage${index}`);
@@ -300,6 +310,8 @@ class AdminApp {
             this.loadSettings(),
             this.updateStatistics()
         ]);
+        this.updateDashboardStats();
+        this.renderCustomerTable();
         PerformanceUtils.measure('Admin Content Rendering', 'admin-render-start');
     }
     async renderPortfolioItems() {
@@ -461,6 +473,77 @@ class AdminApp {
         this.showLogin();
         this.showMessage('Logout berhasil!', 'success');
     }
+    setupSidebarHoverHandlers() {
+        const sidebar = document.querySelector('.admin-sidebar');
+        const main = document.querySelector('.admin-main');
+        if (sidebar && main) {
+            sidebar.addEventListener('mouseenter', () => {
+                if (this.sidebarAutoHide) {
+                    DOMUtils.addClass(sidebar, 'sidebar-visible');
+                    DOMUtils.addClass(main, 'sidebar-visible');
+                }
+            });
+            sidebar.addEventListener('mouseleave', () => {
+                if (this.sidebarAutoHide) {
+                    DOMUtils.removeClass(sidebar, 'sidebar-visible');
+                    DOMUtils.removeClass(main, 'sidebar-visible');
+                }
+            });
+        }
+    }
+    handleSidebarToggle() {
+        const sidebar = document.querySelector('.admin-sidebar');
+        const main = document.querySelector('.admin-main');
+        const toggleBtn = DOMUtils.getElementById('sidebarToggle');
+        if (sidebar && main && toggleBtn) {
+            if (!sidebar.classList.contains('collapsed') && !this.sidebarAutoHide) {
+                DOMUtils.addClass(sidebar, 'collapsed');
+                DOMUtils.addClass(main, 'sidebar-collapsed');
+                DOMUtils.removeClass(toggleBtn, 'auto-hide-active');
+            }
+            else if (sidebar.classList.contains('collapsed') && !this.sidebarAutoHide) {
+                DOMUtils.removeClass(sidebar, 'collapsed');
+                DOMUtils.addClass(sidebar, 'auto-hide');
+                DOMUtils.removeClass(main, 'sidebar-collapsed');
+                DOMUtils.addClass(main, 'auto-hide');
+                DOMUtils.addClass(toggleBtn, 'auto-hide-active');
+                this.sidebarAutoHide = true;
+            }
+            else {
+                DOMUtils.removeClass(sidebar, 'auto-hide');
+                DOMUtils.removeClass(sidebar, 'sidebar-visible');
+                DOMUtils.removeClass(main, 'auto-hide');
+                DOMUtils.removeClass(main, 'sidebar-visible');
+                DOMUtils.removeClass(toggleBtn, 'auto-hide-active');
+                this.sidebarAutoHide = false;
+            }
+            SafeStorage.set(StorageKeys.SIDEBAR_STATE, {
+                collapsed: sidebar.classList.contains('collapsed'),
+                autoHide: this.sidebarAutoHide
+            });
+        }
+    }
+    restoreSidebarState() {
+        const defaultState = { collapsed: false, autoHide: false };
+        const savedState = SafeStorage.get(StorageKeys.SIDEBAR_STATE, defaultState);
+        if (savedState && (savedState.autoHide || savedState.collapsed)) {
+            const sidebar = document.querySelector('.admin-sidebar');
+            const main = document.querySelector('.admin-main');
+            const toggleBtn = DOMUtils.getElementById('sidebarToggle');
+            if (sidebar && main && toggleBtn) {
+                if (savedState.autoHide) {
+                    DOMUtils.addClass(sidebar, 'auto-hide');
+                    DOMUtils.addClass(main, 'auto-hide');
+                    DOMUtils.addClass(toggleBtn, 'auto-hide-active');
+                    this.sidebarAutoHide = true;
+                }
+                else if (savedState.collapsed) {
+                    DOMUtils.addClass(sidebar, 'collapsed');
+                    DOMUtils.addClass(main, 'sidebar-collapsed');
+                }
+            }
+        }
+    }
     checkAuthStatus() {
         try {
             const item = localStorage.getItem(StorageKeys.USER_DATA);
@@ -496,9 +579,23 @@ class AdminApp {
         this.renderPortfolioItems();
         this.renderProductItems();
         this.loadSettings();
+        this.restoreSidebarState();
+    }
+    isAuthenticated() {
+        return this.currentUser !== null;
+    }
+    requireAuth() {
+        if (!this.isAuthenticated()) {
+            this.showMessage('Anda harus login terlebih dahulu untuk mengakses fitur ini', 'error');
+            this.showLogin();
+            return false;
+        }
+        return true;
     }
     handleTabSwitch(event, element) {
         event.preventDefault();
+        if (!this.requireAuth())
+            return;
         const targetTab = element.dataset.tab;
         if (!targetTab)
             return;
@@ -514,6 +611,8 @@ class AdminApp {
     }
     async handleFormSubmit(event) {
         event.preventDefault();
+        if (!this.requireAuth())
+            return;
         const form = event.target;
         const formData = new FormData(form);
         const formType = form.dataset.type;
@@ -670,6 +769,8 @@ class AdminApp {
         this.showMessage('Pengaturan berhasil disimpan!', 'success');
     }
     async handleImageUpload(event, element) {
+        if (!this.requireAuth())
+            return;
         const file = element.files?.[0];
         if (!file)
             return;
@@ -711,6 +812,8 @@ class AdminApp {
         }
     }
     async handleCropperSave() {
+        if (!this.requireAuth())
+            return;
         if (!this.cropper)
             return;
         try {
@@ -731,6 +834,8 @@ class AdminApp {
         }
     }
     async handleDeleteItem(event, element) {
+        if (!this.requireAuth())
+            return;
         const id = parseInt(element.dataset.id || '0');
         const type = element.dataset.type;
         if (!id || !type)
@@ -753,6 +858,8 @@ class AdminApp {
         }
     }
     async handleEditItem(event, element) {
+        if (!this.requireAuth())
+            return;
         const id = parseInt(element.dataset.id || '0');
         const type = element.dataset.type;
         if (!id || !type)
@@ -1195,6 +1302,8 @@ class AdminApp {
         DOMUtils.toggleClass(errorElement, 'visible', !!message);
     }
     async handleBackgroundUpload(event) {
+        if (!this.requireAuth())
+            return;
         const input = event.target;
         const file = input.files?.[0];
         if (!file)
@@ -1239,6 +1348,8 @@ class AdminApp {
         }
     }
     async removeBackgroundImage() {
+        if (!this.requireAuth())
+            return;
         try {
             delete this.siteSettings.backgroundImage;
             await this.saveSiteSettings();
@@ -1422,6 +1533,8 @@ class AdminApp {
         return categoryMap[category] || category;
     }
     showProductModal() {
+        if (!this.requireAuth())
+            return;
         const modal = DOMUtils.getElementById('productModal');
         if (modal) {
             modal.style.display = 'flex';
@@ -1442,6 +1555,8 @@ class AdminApp {
         }
     }
     showPortfolioModal() {
+        if (!this.requireAuth())
+            return;
         const modal = DOMUtils.getElementById('portfolioModal');
         if (modal) {
             modal.style.display = 'flex';
@@ -1502,6 +1617,8 @@ class AdminApp {
         ];
     }
     previewPortfolioImageUrl() {
+        if (!this.requireAuth())
+            return;
         const input = DOMUtils.getElementById('portfolioImage');
         const url = input?.value.trim();
         if (!url) {
@@ -1511,6 +1628,8 @@ class AdminApp {
         this.validateAndPreviewImage(url, 'portfolio');
     }
     previewProductImageUrl() {
+        if (!this.requireAuth())
+            return;
         const input = DOMUtils.getElementById('productImage');
         const url = input?.value.trim();
         if (!url) {
@@ -1520,6 +1639,8 @@ class AdminApp {
         this.validateAndPreviewImage(url, 'product');
     }
     clearPortfolioImage() {
+        if (!this.requireAuth())
+            return;
         const input = DOMUtils.getElementById('portfolioImage');
         const preview = DOMUtils.getElementById('portfolioImagePreview');
         if (input)
@@ -1529,6 +1650,8 @@ class AdminApp {
         this.showMessage('Gambar portfolio dibersihkan!', 'success');
     }
     clearProductImage() {
+        if (!this.requireAuth())
+            return;
         const input = DOMUtils.getElementById('productImage');
         const preview = DOMUtils.getElementById('productImagePreview');
         if (input)
@@ -1571,6 +1694,225 @@ class AdminApp {
             preview.style.display = 'block';
         }
     }
+    updateDashboardStats() {
+        const totalPortfolio = this.portfolioData.length;
+        const totalProducts = this.productsData.length;
+        const soldProducts = this.getSoldProductsCount();
+        const monthlyRevenue = this.getMonthlyRevenue();
+        this.updateStatElement('totalPortfolio', totalPortfolio);
+        this.updateStatElement('totalProducts', totalProducts);
+        this.updateStatElement('soldProducts', soldProducts);
+        this.updateStatElement('monthlyRevenue', monthlyRevenue);
+    }
+    getSoldProductsCount() {
+        const customers = this.getCustomersData();
+        return customers.length;
+    }
+    getMonthlyRevenue() {
+        const customers = this.getCustomersData();
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        return customers
+            .filter(customer => {
+            const purchaseDate = new Date(customer.date);
+            return purchaseDate.getMonth() === currentMonth &&
+                purchaseDate.getFullYear() === currentYear;
+        })
+            .reduce((total, customer) => total + customer.amount, 0);
+    }
+    getCustomersData() {
+        return SafeStorage.get(StorageKeys.CUSTOMERS_DATA, []);
+    }
+    saveCustomersData(customers) {
+        SafeStorage.set(StorageKeys.CUSTOMERS_DATA, customers);
+    }
+    showCustomerModal() {
+        if (!this.requireAuth())
+            return;
+        const modal = document.getElementById('customerModal');
+        if (modal) {
+            modal.classList.add('active');
+            this.resetCustomerForm();
+        }
+    }
+    closeCustomerModal() {
+        if (!this.requireAuth())
+            return;
+        const modal = document.getElementById('customerModal');
+        if (modal) {
+            modal.classList.remove('active');
+            this.resetCustomerForm();
+        }
+    }
+    resetCustomerForm() {
+        const form = document.getElementById('customerForm');
+        if (form) {
+            form.reset();
+            const dateInput = document.getElementById('customerDate');
+            if (dateInput && dateInput.type === 'date') {
+                const today = new Date().toISOString().split('T')[0];
+                if (today) {
+                    dateInput.setAttribute('value', today);
+                }
+            }
+        }
+    }
+    async handleCustomerSubmit(formData) {
+        if (!this.requireAuth())
+            return;
+        try {
+            const customerData = {
+                id: this.generateId(),
+                name: formData.get('name'),
+                email: formData.get('email'),
+                phone: formData.get('phone') || '',
+                product: formData.get('product'),
+                amount: parseInt(formData.get('amount')),
+                date: formData.get('date'),
+                status: formData.get('status'),
+                createdAt: new Date().toISOString()
+            };
+            const customers = this.getCustomersData();
+            customers.push(customerData);
+            this.saveCustomersData(customers);
+            this.renderCustomerTable();
+            this.updateDashboardStats();
+            this.closeCustomerModal();
+            this.showMessage('Customer berhasil ditambahkan!', 'success');
+        }
+        catch (error) {
+            console.error('Error saving customer:', error);
+            this.showMessage('Gagal menyimpan customer!', 'error');
+        }
+    }
+    renderCustomerTable() {
+        const tableBody = document.querySelector('#customerTable tbody');
+        if (!tableBody)
+            return;
+        const customers = this.getCustomersData();
+        tableBody.innerHTML = '';
+        customers.forEach(customer => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+        <td>${customer.name}</td>
+        <td>${customer.email}</td>
+        <td>Rp ${customer.amount.toLocaleString('id-ID')}</td>
+        <td>${customer.product}</td>
+        <td>${new Date(customer.date).toLocaleDateString('id-ID')}</td>
+        <td><span class="status-badge ${customer.status}">${this.getStatusLabel(customer.status)}</span></td>
+        <td class="customer-actions-cell">
+          <button class="action-btn-small edit" onclick="editCustomer(${customer.id})">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="action-btn-small delete" onclick="deleteCustomer(${customer.id})">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+            tableBody.appendChild(row);
+        });
+        this.updateCustomerStats();
+    }
+    getStatusLabel(status) {
+        const labels = {
+            'new': 'Customer Baru',
+            'returning': 'Customer Berulang',
+            'vip': 'VIP Customer'
+        };
+        return labels[status] || status;
+    }
+    updateCustomerStats() {
+        const customers = this.getCustomersData();
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const totalCustomers = customers.length;
+        const newThisMonth = customers.filter(customer => {
+            const createdDate = new Date(customer.createdAt || customer.date);
+            return createdDate.getMonth() === currentMonth &&
+                createdDate.getFullYear() === currentYear;
+        }).length;
+        const returningCustomers = customers.filter(customer => customer.status === 'returning').length;
+        this.updateStatElement('totalCustomers', totalCustomers);
+        this.updateStatElement('newCustomersMonth', newThisMonth);
+        this.updateStatElement('returningCustomers', returningCustomers);
+    }
+    deleteCustomer(id) {
+        if (!this.requireAuth())
+            return;
+        this.showConfirmDialog('Hapus Customer', 'Apakah Anda yakin ingin menghapus customer ini?').then(confirmed => {
+            if (confirmed) {
+                const customers = this.getCustomersData();
+                const updatedCustomers = customers.filter(customer => customer.id !== id);
+                this.saveCustomersData(updatedCustomers);
+                this.renderCustomerTable();
+                this.updateDashboardStats();
+                this.showMessage('Customer berhasil dihapus!', 'success');
+            }
+        });
+    }
+    exportCustomers() {
+        if (!this.requireAuth())
+            return;
+        const customers = this.getCustomersData();
+        if (customers.length === 0) {
+            this.showMessage('Tidak ada data customer untuk diekspor!', 'warning');
+            return;
+        }
+        const csvContent = this.convertToCSV(customers);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        this.showMessage('Data customer berhasil diekspor!', 'success');
+    }
+    convertToCSV(customers) {
+        const headers = ['Nama', 'Email', 'Telepon', 'Produk', 'Total Pembelian', 'Tanggal', 'Status'];
+        const csvRows = [headers.join(',')];
+        customers.forEach(customer => {
+            const row = [
+                `"${customer.name}"`,
+                `"${customer.email}"`,
+                `"${customer.phone || ''}"`,
+                `"${customer.product}"`,
+                customer.amount,
+                `"${customer.date}"`,
+                `"${this.getStatusLabel(customer.status)}""`
+            ];
+            csvRows.push(row.join(','));
+        });
+        return csvRows.join('\n');
+    }
+    setupCustomerModalHandlers() {
+        const modal = document.getElementById('customerModal');
+        const closeBtn = document.getElementById('closeCustomerModal');
+        const cancelBtn = document.getElementById('cancelCustomerModal');
+        const form = document.getElementById('customerForm');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeCustomerModal());
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.closeCustomerModal());
+        }
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeCustomerModal();
+                }
+            });
+        }
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                await this.handleCustomerSubmit(formData);
+            });
+        }
+    }
 }
 const adminApp = new AdminApp();
 if (document.readyState === 'loading') {
@@ -1583,6 +1925,10 @@ window.previewPortfolioImageUrl = () => adminApp.previewPortfolioImageUrl();
 window.previewProductImageUrl = () => adminApp.previewProductImageUrl();
 window.clearPortfolioImage = () => adminApp.clearPortfolioImage();
 window.clearProductImage = () => adminApp.clearProductImage();
+window.showCustomerModal = () => adminApp.showCustomerModal();
+window.closeCustomerModal = () => adminApp.closeCustomerModal();
+window.deleteCustomer = (id) => adminApp.deleteCustomer(id);
+window.exportCustomers = () => adminApp.exportCustomers();
 export default adminApp;
 export { AdminApp };
 //# sourceMappingURL=admin-script.js.map

@@ -54,6 +54,12 @@ export interface User {
   lastLogin?: string;
 }
 
+// Sidebar State Interface
+export interface SidebarState {
+  collapsed: boolean;
+  autoHide: boolean;
+}
+
 // Thumbnail Size Configuration
 export interface ThumbnailSize {
   name: string;
@@ -143,7 +149,9 @@ export enum StorageKeys {
   PORTFOLIO_DATA = 'portfolioData',
   PRODUCTS_DATA = 'productsData',
   SITE_SETTINGS = 'siteSettings',
-  USER_DATA = 'userData'
+  USER_DATA = 'userData',
+  CUSTOMERS_DATA = 'customers',
+  SIDEBAR_STATE = 'sidebarState'
 }
 
 // Animation Configuration

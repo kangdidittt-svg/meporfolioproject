@@ -44,6 +44,10 @@ export interface User {
     password: string;
     lastLogin?: string;
 }
+export interface SidebarState {
+    collapsed: boolean;
+    autoHide: boolean;
+}
 export interface ThumbnailSize {
     name: string;
     width: number;
@@ -106,7 +110,9 @@ export declare enum StorageKeys {
     PORTFOLIO_DATA = "portfolioData",
     PRODUCTS_DATA = "productsData",
     SITE_SETTINGS = "siteSettings",
-    USER_DATA = "userData"
+    USER_DATA = "userData",
+    CUSTOMERS_DATA = "customers",
+    SIDEBAR_STATE = "sidebarState"
 }
 export interface AnimationConfig {
     duration: number;

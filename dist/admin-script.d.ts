@@ -9,6 +9,7 @@ declare class AdminApp {
     private isInitialized;
     private thumbnailSizes;
     private tempImageData;
+    private sidebarAutoHide;
     private elements;
     constructor();
     private bindMethods;
@@ -36,9 +37,14 @@ declare class AdminApp {
     private updateStatistics;
     private handleLogin;
     private handleLogout;
+    private setupSidebarHoverHandlers;
+    private handleSidebarToggle;
+    private restoreSidebarState;
     private checkAuthStatus;
     private showLogin;
     private showDashboard;
+    private isAuthenticated;
+    private requireAuth;
     private handleTabSwitch;
     private handleFormSubmit;
     private handlePortfolioSubmit;
@@ -106,6 +112,22 @@ declare class AdminApp {
     clearProductImage(): void;
     private validateAndPreviewImage;
     private showUrlImagePreview;
+    private updateDashboardStats;
+    private getSoldProductsCount;
+    private getMonthlyRevenue;
+    private getCustomersData;
+    private saveCustomersData;
+    showCustomerModal(): void;
+    closeCustomerModal(): void;
+    private resetCustomerForm;
+    private handleCustomerSubmit;
+    private renderCustomerTable;
+    private getStatusLabel;
+    private updateCustomerStats;
+    deleteCustomer(id: number): void;
+    exportCustomers(): void;
+    private convertToCSV;
+    private setupCustomerModalHandlers;
 }
 declare const adminApp: AdminApp;
 export default adminApp;

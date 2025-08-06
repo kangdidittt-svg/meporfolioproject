@@ -41,6 +41,165 @@ body {
     overflow-y: auto;
 }
 
+.modal-content.cropper-modal {
+    max-width: 800px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Image Upload Styles */
+.image-upload-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.image-upload-container input[type="text"] {
+    flex: 1;
+}
+
+.image-preview {
+    margin-top: 10px;
+    padding: 10px;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Cropper Modal Styles */
+.cropper-container {
+    margin: 20px 0;
+}
+
+.cropper-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.aspect-ratio-controls,
+.rotation-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.aspect-ratio-controls label {
+    font-weight: 600;
+    margin-right: 5px;
+}
+
+.aspect-ratio-controls select {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.rotation-controls button {
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.cropper-image-container {
+    max-height: 400px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.cropper-image-container img {
+    max-width: 100%;
+    display: block;
+}
+
+/* Thumbnail Styles */
+.additional-images-container {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.additional-image-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: white;
+}
+
+.additional-image-item:last-child {
+    margin-bottom: 0;
+}
+
+.additional-image-item input[type="text"] {
+    width: calc(100% - 120px);
+    margin-right: 10px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.additional-image-item button {
+    width: 100px;
+    padding: 8px;
+    font-size: 14px;
+}
+
+.additional-preview {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.additional-preview img {
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+}
+
+.additional-preview button {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.image-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: 1px solid #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;

@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="admin-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
 </head>
 <body>
     <!-- Login Modal -->
@@ -92,6 +94,25 @@
                 <h2>Pengaturan Website</h2>
             </div>
             
+            <!-- Profile Section -->
+            <div class="profile-section">
+                <h3>Foto Profil</h3>
+                <div class="profile-upload">
+                    <div class="profile-preview">
+                        <img id="profileImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Ccircle cx='75' cy='75' r='75' fill='%23e0e0e0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23666' font-family='Arial' font-size='16'%3EFoto Profil%3C/text%3E%3C/svg%3E" alt="Profile">
+                    </div>
+                    <div class="profile-controls">
+                        <input type="file" id="profileUpload" accept="image/*" style="display: none;">
+                        <button class="btn-primary" onclick="document.getElementById('profileUpload').click()">
+                            <i class="fas fa-upload"></i> Upload Foto
+                        </button>
+                        <button class="btn-secondary" id="editProfileBtn" style="display: none;">
+                            <i class="fas fa-edit"></i> Edit Foto
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="settings-form">
                 <div class="form-group">
                     <label for="siteName">Nama Website:</label>
@@ -145,19 +166,53 @@
                     <label for="portfolioDescription">Deskripsi:</label>
                     <textarea id="portfolioDescription" rows="3"></textarea>
                 </div>
-                
+
+                <!-- Main Image Section -->
                 <div class="form-group">
-                    <label for="portfolioImage">URL Gambar:</label>
-                    <input type="url" id="portfolioImage" required>
+                    <label>Gambar Utama:</label>
+                    <div class="image-upload-container">
+                        <input type="file" id="portfolioImageFile" accept="image/*" style="display: none;">
+                        <input type="text" id="portfolioImage" placeholder="URL gambar atau pilih file" readonly>
+                        <button type="button" onclick="document.getElementById('portfolioImageFile').click()" class="btn-secondary">Upload Gambar</button>
+                    </div>
+                    <div id="portfolioImagePreview" class="image-preview" style="display: none;">
+                        <img id="portfolioPreviewImg" src="" alt="Preview">
+                        <button type="button" onclick="editPortfolioThumbnail()" class="btn-secondary">Edit Thumbnail</button>
+                    </div>
                 </div>
-                
+
+                <!-- Additional Images Section -->
                 <div class="form-group">
-                    <label for="portfolioSize">Ukuran Tampilan:</label>
-                    <select id="portfolioSize">
-                        <option value="normal">Normal</option>
-                        <option value="wide">Lebar (2x)</option>
-                        <option value="tall">Tinggi (2x)</option>
-                    </select>
+                    <label>Gambar Tambahan (Mockup, Proses, Brainstorm):</label>
+                    <div class="additional-images-container">
+                        <div class="additional-image-item">
+                            <input type="file" id="additionalImage1" accept="image/*" style="display: none;">
+                            <input type="text" id="additionalImageUrl1" placeholder="URL gambar mockup/proses">
+                            <button type="button" onclick="document.getElementById('additionalImage1').click()" class="btn-secondary">Upload</button>
+                            <div class="additional-preview" id="additionalPreview1" style="display: none;">
+                                <img src="" alt="Additional Image 1">
+                                <button type="button" onclick="removeAdditionalImage(1)" class="btn-danger">Hapus</button>
+                            </div>
+                        </div>
+                        <div class="additional-image-item">
+                            <input type="file" id="additionalImage2" accept="image/*" style="display: none;">
+                            <input type="text" id="additionalImageUrl2" placeholder="URL gambar mockup/proses">
+                            <button type="button" onclick="document.getElementById('additionalImage2').click()" class="btn-secondary">Upload</button>
+                            <div class="additional-preview" id="additionalPreview2" style="display: none;">
+                                <img src="" alt="Additional Image 2">
+                                <button type="button" onclick="removeAdditionalImage(2)" class="btn-danger">Hapus</button>
+                            </div>
+                        </div>
+                        <div class="additional-image-item">
+                            <input type="file" id="additionalImage3" accept="image/*" style="display: none;">
+                            <input type="text" id="additionalImageUrl3" placeholder="URL gambar mockup/proses">
+                            <button type="button" onclick="document.getElementById('additionalImage3').click()" class="btn-secondary">Upload</button>
+                            <div class="additional-preview" id="additionalPreview3" style="display: none;">
+                                <img src="" alt="Additional Image 3">
+                                <button type="button" onclick="removeAdditionalImage(3)" class="btn-danger">Hapus</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -206,8 +261,31 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="productImage">URL Gambar:</label>
-                    <input type="url" id="productImage" required>
+                    <label for="productImage">Gambar Produk:</label>
+                    <div class="image-upload-container">
+                        <input type="file" id="productImageFile" accept="image/*" style="display: none;">
+                        <input type="text" id="productImage" placeholder="URL gambar atau upload file" readonly>
+                        <button type="button" class="btn-secondary" onclick="document.getElementById('productImageFile').click()">
+                            <i class="fas fa-upload"></i> Upload
+                        </button>
+                    </div>
+                    <div class="image-size-guide" style="margin-top: 8px; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #28a745;">
+                        <small style="color: #495057; font-weight: 500;">
+                            <i class="fas fa-info-circle" style="color: #28a745; margin-right: 5px;"></i>
+                            <strong>Panduan Upload Gambar Produk:</strong><br>
+                            • Ukuran minimal: 300x200 piksel<br>
+                            • <strong>Rasio aspek: Otomatis mengikuti gambar asli</strong><br>
+                            • Format: JPG, PNG, atau WebP<br>
+                            • Ukuran file maksimal: 2MB<br>
+                            • <em>Tip: Gunakan rasio yang sesuai dengan produk Anda</em>
+                        </small>
+                    </div>
+                    <div class="image-preview" id="productImagePreview" style="display: none;">
+                        <img id="productPreviewImg" src="" alt="Preview">
+                        <button type="button" class="btn-secondary" onclick="editProductImage()">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -235,6 +313,47 @@
                     <button type="submit" class="btn-primary">Simpan</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Image Cropper Modal -->
+    <div id="cropperModal" class="modal">
+        <div class="modal-content cropper-modal">
+            <div class="modal-header">
+                <h3>Edit Gambar</h3>
+                <button class="close-btn" onclick="closeCropperModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="cropper-container">
+                <div class="cropper-controls">
+                    <div class="aspect-ratio-controls">
+                        <label>Aspect Ratio:</label>
+                        <select id="aspectRatio">
+                            <option value="free">Free</option>
+                            <option value="1">1:1 (Square)</option>
+                            <option value="1.33">4:3 (Normal)</option>
+                            <option value="1.77">16:9 (Wide)</option>
+                            <option value="0.75">3:4 (Tall)</option>
+                        </select>
+                    </div>
+                    <div class="rotation-controls">
+                        <button type="button" class="btn-secondary" onclick="rotateCropper(-90)">
+                            <i class="fas fa-undo"></i> Rotate Left
+                        </button>
+                        <button type="button" class="btn-secondary" onclick="rotateCropper(90)">
+                            <i class="fas fa-redo"></i> Rotate Right
+                        </button>
+                    </div>
+                </div>
+                <div class="cropper-image-container">
+                    <img id="cropperImage" src="" alt="Crop">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-primary" onclick="applyCrop()">Terapkan</button>
+                <button type="button" class="btn-secondary" onclick="closeCropperModal()">Batal</button>
+            </div>
         </div>
     </div>
 

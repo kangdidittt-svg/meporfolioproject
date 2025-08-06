@@ -227,9 +227,13 @@ function loadPortfolioItems() {
     
     portfolioData.forEach(item => {
         const portfolioItem = document.createElement('div');
-        portfolioItem.className = `portfolio-item ${item.size}`;
+        portfolioItem.className = 'portfolio-item';
+        
+        // Use thumbnail if available, otherwise use original image
+        const displayImage = item.thumbnail || item.image;
+        
         portfolioItem.innerHTML = `
-            <img src="${item.image}" alt="${item.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+            <img src="${displayImage}" alt="${item.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
             <div class="placeholder-image" style="display:none;">
                 <span>${item.title}</span>
             </div>
@@ -237,7 +241,7 @@ function loadPortfolioItems() {
         
         // Add click handler
         portfolioItem.addEventListener('click', () => {
-            showPortfolioModal(item);
+            showPortfolioModal(item, portfolioData);
         });
         
         portfolioGrid.appendChild(portfolioItem);
@@ -258,21 +262,51 @@ function loadProductItems() {
     productsData.filter(product => product.status === 'active').forEach(product => {
         const productCard = document.createElement('div');
         productCard.className = 'product-card';
-        productCard.innerHTML = `
-            <div class="product-image">
-                <img src="${product.image}" alt="${product.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-                <div style="display:none; width:100%; height:100%; align-items:center; justify-content:center; color:white; font-weight:500; font-size:1.1rem;">
-                    <span>${product.name}</span>
-                </div>
-            </div>
-            <div class="product-info">
-                <h3>${product.name}</h3>
-                <p>${product.description}</p>
-                <div class="product-price">Rp ${product.price.toLocaleString('id-ID')}</div>
-                <button class="btn-primary">Beli Sekarang</button>
-            </div>
+        
+        // Create product image container
+        const productImageDiv = document.createElement('div');
+        productImageDiv.className = 'product-image';
+        
+        // Create image element to detect aspect ratio
+        const img = document.createElement('img');
+        img.src = product.image;
+        img.alt = product.name;
+        img.style.display = 'none'; // Hide initially
+        
+        // Create fallback div
+        const fallbackDiv = document.createElement('div');
+        fallbackDiv.style.cssText = 'display:none; width:100%; height:100%; align-items:center; justify-content:center; color:white; font-weight:500; font-size:1.1rem;';
+        fallbackDiv.innerHTML = `<span>${product.name}</span>`;
+        
+        // Handle image load to set aspect ratio
+        img.onload = function() {
+            const aspectRatio = this.naturalWidth / this.naturalHeight;
+            productImageDiv.style.setProperty('--product-aspect-ratio', aspectRatio);
+            this.style.display = 'block';
+            console.log(`Produk "${product.name}" menggunakan rasio aspek:`, aspectRatio.toFixed(2));
+        };
+        
+        // Handle image error
+        img.onerror = function() {
+            this.style.display = 'none';
+            fallbackDiv.style.display = 'flex';
+        };
+        
+        productImageDiv.appendChild(img);
+        productImageDiv.appendChild(fallbackDiv);
+        
+        // Create product info
+        const productInfo = document.createElement('div');
+        productInfo.className = 'product-info';
+        productInfo.innerHTML = `
+            <h3>${product.name}</h3>
+            <p>${product.description}</p>
+            <div class="product-price">Rp ${product.price.toLocaleString('id-ID')}</div>
+            <button class="btn-primary">Beli Sekarang</button>
         `;
         
+        productCard.appendChild(productImageDiv);
+        productCard.appendChild(productInfo);
         productsGrid.appendChild(productCard);
     });
     
@@ -370,7 +404,7 @@ function attachProductButtonListeners(phoneNumber = null) {
 }
 
 // Show portfolio modal (for portfolio item details)
-function showPortfolioModal(item) {
+function showPortfolioModal(item, allItems = []) {
     // Create modal if it doesn't exist
     let modal = document.getElementById('portfolioDetailModal');
     if (!modal) {
@@ -380,7 +414,14 @@ function showPortfolioModal(item) {
         modal.innerHTML = `
             <div class="portfolio-modal-content">
                 <button class="portfolio-close-btn">&times;</button>
-                <img class="portfolio-modal-image" src="" alt="">
+                <div class="portfolio-modal-gallery">
+                    <button class="gallery-nav gallery-prev">&lt;</button>
+                    <div class="gallery-container">
+                        <img class="portfolio-modal-image" src="" alt="">
+                        <div class="gallery-counter"></div>
+                    </div>
+                    <button class="gallery-nav gallery-next">&gt;</button>
+                </div>
                 <div class="portfolio-modal-info">
                     <h3 class="portfolio-modal-title"></h3>
                     <p class="portfolio-modal-description"></p>
@@ -433,10 +474,57 @@ function showPortfolioModal(item) {
                 cursor: pointer;
                 z-index: 1001;
             }
+            .portfolio-modal-gallery {
+                position: relative;
+                display: flex;
+                align-items: center;
+                background: #f8f9fa;
+            }
+            .gallery-container {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                position: relative;
+            }
             .portfolio-modal-image {
                 max-width: 100%;
                 max-height: 70vh;
                 object-fit: contain;
+                display: block;
+            }
+            .gallery-counter {
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 5px 10px;
+                border-radius: 15px;
+                font-size: 0.8rem;
+            }
+            .gallery-nav {
+                background: rgba(0, 0, 0, 0.5);
+                color: white;
+                border: none;
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+                cursor: pointer;
+                transition: background 0.3s;
+            }
+            .gallery-nav:hover {
+                background: rgba(0, 0, 0, 0.7);
+            }
+            .gallery-nav:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+            }
+            .gallery-prev {
+                border-radius: 0 12px 0 0;
+            }
+            .gallery-next {
+                border-radius: 12px 0 0 0;
             }
             .portfolio-modal-info {
                 padding: 1.5rem;
@@ -467,6 +555,11 @@ function showPortfolioModal(item) {
                 .portfolio-modal-image {
                     max-height: 50vh;
                 }
+                .gallery-nav {
+                    width: 40px;
+                    height: 40px;
+                    font-size: 1.2rem;
+                }
             }
         `;
         document.head.appendChild(style);
@@ -483,12 +576,141 @@ function showPortfolioModal(item) {
         });
     }
     
+    // Prepare gallery images - include original image and additional images if available
+    const galleryImages = [];
+    
+    // Always include the original image first
+    if (item.image) {
+        galleryImages.push({
+            src: item.image,
+            title: item.title + ' - Gambar Asli',
+            type: 'original'
+        });
+    }
+    
+    // Add additional images if available
+    if (item.additionalImages && Array.isArray(item.additionalImages)) {
+        item.additionalImages.forEach((img, index) => {
+            if (img) {
+                galleryImages.push({
+                    src: img,
+                    title: `${item.title} - Gambar ${index + 2}`,
+                    type: 'additional'
+                });
+            }
+        });
+    }
+    
+    // Legacy support for old format
+    if (item.mockup) {
+        galleryImages.push({
+            src: item.mockup,
+            title: item.title + ' - Mockup',
+            type: 'mockup'
+        });
+    }
+    if (item.process) {
+        galleryImages.push({
+            src: item.process,
+            title: item.title + ' - Process',
+            type: 'process'
+        });
+    }
+    if (item.brainstorm) {
+        galleryImages.push({
+            src: item.brainstorm,
+            title: item.title + ' - Brainstorm',
+            type: 'brainstorm'
+        });
+    }
+    
+    // Set up gallery navigation
+    let currentImageIndex = 0;
+    
+    function updateGalleryDisplay() {
+        const currentImage = galleryImages[currentImageIndex];
+        modal.querySelector('.portfolio-modal-image').src = currentImage.src;
+        modal.querySelector('.portfolio-modal-image').alt = currentImage.title;
+        
+        // Update counter
+        const counter = modal.querySelector('.gallery-counter');
+        if (galleryImages.length > 1) {
+            counter.textContent = `${currentImageIndex + 1} / ${galleryImages.length}`;
+            counter.style.display = 'block';
+        } else {
+            counter.style.display = 'none';
+        }
+        
+        // Update navigation buttons
+        const prevBtn = modal.querySelector('.gallery-prev');
+        const nextBtn = modal.querySelector('.gallery-next');
+        
+        if (galleryImages.length <= 1) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+        } else {
+            prevBtn.style.display = 'block';
+            nextBtn.style.display = 'block';
+            prevBtn.disabled = currentImageIndex === 0;
+            nextBtn.disabled = currentImageIndex === galleryImages.length - 1;
+        }
+    }
+    
+    // Add navigation event listeners
+    const prevBtn = modal.querySelector('.gallery-prev');
+    const nextBtn = modal.querySelector('.gallery-next');
+    
+    prevBtn.onclick = () => {
+        if (currentImageIndex > 0) {
+            currentImageIndex--;
+            updateGalleryDisplay();
+        }
+    };
+    
+    nextBtn.onclick = () => {
+        if (currentImageIndex < galleryImages.length - 1) {
+            currentImageIndex++;
+            updateGalleryDisplay();
+        }
+    };
+    
+    // Keyboard navigation
+    const handleKeyPress = (e) => {
+        if (e.key === 'ArrowLeft' && currentImageIndex > 0) {
+            currentImageIndex--;
+            updateGalleryDisplay();
+        } else if (e.key === 'ArrowRight' && currentImageIndex < galleryImages.length - 1) {
+            currentImageIndex++;
+            updateGalleryDisplay();
+        } else if (e.key === 'Escape') {
+            modal.classList.remove('active');
+            document.removeEventListener('keydown', handleKeyPress);
+        }
+    };
+    
+    document.addEventListener('keydown', handleKeyPress);
+    
+    // Remove keyboard listener when modal closes
+    const originalCloseHandler = () => {
+        modal.classList.remove('active');
+        document.removeEventListener('keydown', handleKeyPress);
+    };
+    
+    modal.querySelector('.portfolio-close-btn').onclick = originalCloseHandler;
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            originalCloseHandler();
+        }
+    };
+    
     // Update modal content
-    modal.querySelector('.portfolio-modal-image').src = item.image;
-    modal.querySelector('.portfolio-modal-image').alt = item.title;
     modal.querySelector('.portfolio-modal-title').textContent = item.title;
     modal.querySelector('.portfolio-modal-description').textContent = item.description;
     modal.querySelector('.portfolio-modal-category').textContent = getCategoryName(item.category);
+    
+    // Initialize gallery display
+    currentImageIndex = 0;
+    updateGalleryDisplay();
     
     // Show modal
     modal.classList.add('active');
@@ -539,57 +761,49 @@ const defaultPortfolio = [
         id: 1,
         title: "Digital Art",
         category: "ilustrasi",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23667eea'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EDigital Art%3C/text%3E%3C/svg%3E",
-        size: "normal"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23667eea'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EDigital Art%3C/text%3E%3C/svg%3E"
     },
     {
         id: 2,
         title: "Character Design",
         category: "character",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23764ba2'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3ECharacter%3C/text%3E%3C/svg%3E",
-        size: "wide"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23764ba2'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3ECharacter%3C/text%3E%3C/svg%3E"
     },
     {
         id: 3,
         title: "Branding Project",
         category: "branding",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='300' viewBox='0 0 600 300'%3E%3Crect width='600' height='300' fill='%23f093fb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EBranding%3C/text%3E%3C/svg%3E",
-        size: "tall"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f093fb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EBranding%3C/text%3E%3C/svg%3E"
     },
     {
         id: 4,
         title: "Editorial Illustration",
         category: "editorial",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%234facfe'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EEditorial%3C/text%3E%3C/svg%3E",
-        size: "normal"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%234facfe'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EEditorial%3C/text%3E%3C/svg%3E"
     },
     {
         id: 5,
         title: "Logo Design",
         category: "branding",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Crect width='300' height='300' fill='%2343e97b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3ELogo%3C/text%3E%3C/svg%3E",
-        size: "normal"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%2343e97b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3ELogo%3C/text%3E%3C/svg%3E"
     },
     {
         id: 6,
         title: "Book Cover",
         category: "editorial",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%2338f9d7'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EBook Cover%3C/text%3E%3C/svg%3E",
-        size: "tall"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%2338f9d7'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EBook Cover%3C/text%3E%3C/svg%3E"
     },
     {
         id: 7,
         title: "Poster Design",
         category: "ilustrasi",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect width='500' height='300' fill='%23667eea'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EPoster%3C/text%3E%3C/svg%3E",
-        size: "wide"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23667eea'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EPoster%3C/text%3E%3C/svg%3E"
     },
     {
         id: 8,
         title: "Icon Set",
         category: "branding",
-        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Crect width='300' height='300' fill='%23f093fb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EIcons%3C/text%3E%3C/svg%3E",
-        size: "normal"
+        image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f093fb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='20'%3EIcons%3C/text%3E%3C/svg%3E"
     }
 ];
 

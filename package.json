@@ -1,0 +1,30 @@
+{
+  "name": "rap-portfolio",
+  "version": "1.0.0",
+  "description": "Portfolio website for illustrator and designer",
+  "main": "index.html",
+  "scripts": {
+    "build": "tsc && npm run minify",
+    "watch": "tsc --watch",
+    "minify": "terser dist/script.js -o dist/script.min.js && terser dist/admin-script.js -o dist/admin-script.min.js",
+    "dev": "concurrently \"npm run watch\" \"python -m http.server 8000\"",
+    "start": "python -m http.server 8000"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "terser": "^5.26.0",
+    "concurrently": "^8.2.2",
+    "@types/node": "^20.0.0"
+  },
+  "dependencies": {
+    "cropperjs": "^1.6.1"
+  },
+  "keywords": [
+    "portfolio",
+    "typescript",
+    "responsive",
+    "illustrator"
+  ],
+  "author": "Portfolio Owner",
+  "license": "MIT"
+}

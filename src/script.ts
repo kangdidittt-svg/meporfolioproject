@@ -325,7 +325,7 @@ class PortfolioApp {
    * Apply site settings to DOM
    */
   private async applySiteSettings(): Promise<void> {
-    const { siteName, heroTitle, heroSubtitle, aboutText, profileImage } = this.siteSettings;
+    const { siteName, heroTitle, heroSubtitle, aboutText, profileImage, backgroundImage } = this.siteSettings;
 
     // Update site title
     document.title = siteName;
@@ -345,6 +345,11 @@ class PortfolioApp {
     if (profileImage) {
       const profileImageEl = DOMUtils.getElementById<HTMLImageElement>('profileImage');
       if (profileImageEl) profileImageEl.src = profileImage;
+    }
+
+    // Apply background image
+    if (backgroundImage) {
+      document.body.style.backgroundImage = `url(${backgroundImage})`;
     }
 
     // Update WhatsApp links

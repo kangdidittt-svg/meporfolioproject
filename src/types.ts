@@ -40,6 +40,7 @@ export interface SiteSettings {
   whatsappNumber: string;
   aboutText: string;
   profileImage?: string;
+  backgroundImage?: string;
   gridLayout?: 'masonry' | 'grid' | 'list';
   itemsPerPage?: number;
   showCategories?: boolean;

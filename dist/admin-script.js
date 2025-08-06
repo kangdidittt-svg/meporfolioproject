@@ -202,6 +202,14 @@ class AdminApp {
             const editBtn = document.querySelector('.edit-profile-image');
             editBtn?.addEventListener('click', () => this.editProfileImage());
         }
+        const backgroundUpload = DOMUtils.getElementById('backgroundUpload');
+        if (backgroundUpload) {
+            backgroundUpload.addEventListener('change', (e) => this.handleBackgroundUpload(e));
+        }
+        const removeBackgroundBtn = DOMUtils.getElementById('removeBackgroundBtn');
+        if (removeBackgroundBtn) {
+            removeBackgroundBtn.addEventListener('click', () => this.removeBackgroundImage());
+        }
         const imageInputs = DOMUtils.querySelectorAll('input[type="file"][accept*="image"]');
         imageInputs.forEach(input => {
             input.addEventListener('change', (e) => this.previewImage(e.target));
@@ -402,7 +410,7 @@ class AdminApp {
         return card;
     }
     async loadSettings() {
-        const { siteName, heroTitle, heroSubtitle, aboutText, whatsappNumber, profileImage } = this.siteSettings;
+        const { siteName, heroTitle, heroSubtitle, aboutText, whatsappNumber, profileImage, backgroundImage } = this.siteSettings;
         this.setFormValue('siteName', siteName);
         this.setFormValue('heroTitle', heroTitle);
         this.setFormValue('heroSubtitle', heroSubtitle);
@@ -410,6 +418,13 @@ class AdminApp {
         this.setFormValue('whatsappNumber', whatsappNumber);
         if (profileImage && this.elements.profileImage) {
             this.elements.profileImage.src = profileImage;
+        }
+        if (backgroundImage) {
+            this.updateBackgroundPreview(backgroundImage);
+            const removeBtn = DOMUtils.getElementById('removeBackgroundBtn');
+            if (removeBtn) {
+                removeBtn.style.display = 'inline-flex';
+            }
         }
     }
     async updateStatistics() {
@@ -1178,6 +1193,83 @@ class AdminApp {
         }
         errorElement.textContent = message;
         DOMUtils.toggleClass(errorElement, 'visible', !!message);
+    }
+    async handleBackgroundUpload(event) {
+        const input = event.target;
+        const file = input.files?.[0];
+        if (!file)
+            return;
+        if (file.size > 2 * 1024 * 1024) {
+            this.showMessage('Ukuran file terlalu besar. Maksimal 2MB.', 'error');
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            this.showMessage('File harus berupa gambar.', 'error');
+            return;
+        }
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const imageData = e.target?.result;
+                this.siteSettings.backgroundImage = imageData;
+                await this.saveSiteSettings();
+                this.updateBackgroundPreview(imageData);
+                const removeBtn = DOMUtils.getElementById('removeBackgroundBtn');
+                if (removeBtn) {
+                    removeBtn.style.display = 'inline-flex';
+                }
+                this.applyBackgroundToPage(imageData);
+                this.showMessage('Background berhasil diupload!', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+        catch (error) {
+            console.error('Error uploading background:', error);
+            this.showMessage('Gagal mengupload background.', 'error');
+        }
+    }
+    updateBackgroundPreview(imageData) {
+        const preview = DOMUtils.getElementById('backgroundPreview');
+        if (preview) {
+            preview.style.backgroundImage = `url(${imageData})`;
+            const textElement = preview.querySelector('.background-preview-text');
+            if (textElement) {
+                textElement.textContent = 'Background Aktif';
+            }
+        }
+    }
+    async removeBackgroundImage() {
+        try {
+            delete this.siteSettings.backgroundImage;
+            await this.saveSiteSettings();
+            const preview = DOMUtils.getElementById('backgroundPreview');
+            if (preview) {
+                preview.style.backgroundImage = 'none';
+                const textElement = preview.querySelector('.background-preview-text');
+                if (textElement) {
+                    textElement.textContent = 'Preview Background';
+                }
+            }
+            const removeBtn = DOMUtils.getElementById('removeBackgroundBtn');
+            if (removeBtn) {
+                removeBtn.style.display = 'none';
+            }
+            this.applyBackgroundToPage('');
+            this.showMessage('Background berhasil dihapus!', 'success');
+        }
+        catch (error) {
+            console.error('Error removing background:', error);
+            this.showMessage('Gagal menghapus background.', 'error');
+        }
+    }
+    applyBackgroundToPage(imageData) {
+        const body = document.body;
+        if (imageData) {
+            body.style.backgroundImage = `url(${imageData})`;
+        }
+        else {
+            body.style.backgroundImage = 'none';
+        }
     }
     previewImage(input) {
         const file = input.files?.[0];

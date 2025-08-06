@@ -73,6 +73,10 @@ declare class AdminApp {
     private loadTabData;
     private validateField;
     private showFieldError;
+    private handleBackgroundUpload;
+    private updateBackgroundPreview;
+    private removeBackgroundImage;
+    private applyBackgroundToPage;
     private previewImage;
     private autoSave;
     private saveAllData;

@@ -191,7 +191,7 @@ class PortfolioApp {
         return card;
     }
     async applySiteSettings() {
-        const { siteName, heroTitle, heroSubtitle, aboutText, profileImage } = this.siteSettings;
+        const { siteName, heroTitle, heroSubtitle, aboutText, profileImage, backgroundImage } = this.siteSettings;
         document.title = siteName;
         const heroTitleEl = DOMUtils.getElementById('heroTitle');
         const heroSubtitleEl = DOMUtils.getElementById('heroSubtitle');
@@ -206,6 +206,9 @@ class PortfolioApp {
             const profileImageEl = DOMUtils.getElementById('profileImage');
             if (profileImageEl)
                 profileImageEl.src = profileImage;
+        }
+        if (backgroundImage) {
+            document.body.style.backgroundImage = `url(${backgroundImage})`;
         }
         this.updateWhatsAppLinks();
     }

@@ -113,6 +113,30 @@
                 </div>
             </div>
             
+            <!-- Background Section -->
+            <div class="background-section">
+                <h3>Background Website</h3>
+                <div class="background-upload">
+                    <div class="background-preview">
+                        <div id="backgroundPreview" class="background-preview-container">
+                            <div class="background-preview-text">Preview Background</div>
+                        </div>
+                    </div>
+                    <div class="background-controls">
+                        <input type="file" id="backgroundUpload" accept="image/*" style="display: none;">
+                        <button class="btn-primary" onclick="document.getElementById('backgroundUpload').click()">
+                            <i class="fas fa-upload"></i> Upload Background
+                        </button>
+                        <button class="btn-secondary" id="removeBackgroundBtn" style="display: none;">
+                            <i class="fas fa-trash"></i> Hapus Background
+                        </button>
+                    </div>
+                    <div class="form-help">
+                        <small>Format yang didukung: JPG, PNG, WebP. Ukuran maksimal: 2MB. Resolusi optimal: 1920x1080px</small>
+                    </div>
+                </div>
+            </div>
+            
             <form id="settingsForm" data-type="settings" class="settings-form">
                 <div class="form-group">
                     <label for="siteName">Nama Website:</label>

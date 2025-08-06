@@ -10,6 +10,7 @@ class AdminApp {
         this.currentEditingId = null;
         this.isInitialized = false;
         this.thumbnailSizes = [];
+        this.tempImageData = {};
         this.elements = {};
         this.siteSettings = this.getDefaultSettings();
         this.thumbnailSizes = this.getDefaultThumbnailSizes();
@@ -22,6 +23,12 @@ class AdminApp {
         this.handleCropperSave = this.handleCropperSave.bind(this);
         this.handleDeleteItem = this.handleDeleteItem.bind(this);
         this.handleEditItem = this.handleEditItem.bind(this);
+        this.handleLogin = this.handleLogin.bind(this);
+        this.handleLogout = this.handleLogout.bind(this);
+        this.showProductModal = this.showProductModal.bind(this);
+        this.closeProductModal = this.closeProductModal.bind(this);
+        this.showPortfolioModal = this.showPortfolioModal.bind(this);
+        this.closePortfolioModal = this.closePortfolioModal.bind(this);
     }
     async init() {
         if (this.isInitialized)
@@ -29,6 +36,7 @@ class AdminApp {
         PerformanceUtils.mark('admin-init-start');
         try {
             this.cacheElements();
+            this.checkAuthStatus();
             await this.loadData();
             this.setupEventListeners();
             await this.renderContent();
@@ -36,7 +44,6 @@ class AdminApp {
             this.setupImageHandlers();
             this.isInitialized = true;
             PerformanceUtils.measure('Admin Initialization', 'admin-init-start');
-            this.showMessage('Admin panel loaded successfully!', 'success');
             console.log('🔧 Admin panel initialized with TypeScript!');
         }
         catch (error) {
@@ -46,12 +53,12 @@ class AdminApp {
     }
     cacheElements() {
         this.elements = {
-            portfolioGrid: DOMUtils.getElementById('portfolioGrid'),
-            productsGrid: DOMUtils.getElementById('productsGrid'),
+            portfolioGrid: DOMUtils.getElementById('portfolioList'),
+            productsGrid: DOMUtils.getElementById('productsList'),
             cropperModal: DOMUtils.getElementById('cropperModal'),
             cropperImage: DOMUtils.getElementById('cropperImage'),
             profileImage: DOMUtils.getElementById('profileImage'),
-            tabButtons: DOMUtils.querySelectorAll('.tab-btn'),
+            tabButtons: DOMUtils.querySelectorAll('.nav-tab'),
             tabContents: DOMUtils.querySelectorAll('.tab-content'),
             forms: DOMUtils.querySelectorAll('form')
         };
@@ -62,9 +69,26 @@ class AdminApp {
         this.productsData = SafeStorage.get(StorageKeys.PRODUCTS_DATA, this.getDefaultProducts());
         this.siteSettings = SafeStorage.get(StorageKeys.SITE_SETTINGS, this.getDefaultSettings());
         this.currentUser = SafeStorage.get(StorageKeys.USER_DATA, null);
+        if (!SafeStorage.get(StorageKeys.PORTFOLIO_DATA, null)) {
+            SafeStorage.set(StorageKeys.PORTFOLIO_DATA, this.portfolioData);
+        }
+        if (!SafeStorage.get(StorageKeys.PRODUCTS_DATA, null)) {
+            SafeStorage.set(StorageKeys.PRODUCTS_DATA, this.productsData);
+        }
+        if (!SafeStorage.get(StorageKeys.SITE_SETTINGS, null)) {
+            SafeStorage.set(StorageKeys.SITE_SETTINGS, this.siteSettings);
+        }
         PerformanceUtils.measure('Admin Data Loading', 'admin-data-load-start');
     }
     setupEventListeners() {
+        const loginForm = DOMUtils.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', this.handleLogin);
+        }
+        const logoutBtn = DOMUtils.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', this.handleLogout);
+        }
         if (this.elements.tabButtons) {
             DOMUtils.addEventListeners(this.elements.tabButtons, 'click', this.handleTabSwitch);
         }
@@ -78,6 +102,26 @@ class AdminApp {
         this.setupCropperHandlers();
         document.addEventListener('keydown', this.handleKeyboardShortcuts.bind(this));
         this.setupAutoSave();
+        this.setupProductModalHandlers();
+        this.setupPortfolioModalHandlers();
+        this.setupEventDelegation();
+    }
+    setupEventDelegation() {
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target.classList.contains('edit-btn') || target.closest('.edit-btn')) {
+                const button = target.classList.contains('edit-btn') ? target : target.closest('.edit-btn');
+                if (button) {
+                    this.handleEditItem(event, button);
+                }
+            }
+            if (target.classList.contains('delete-btn') || target.closest('.delete-btn')) {
+                const button = target.classList.contains('delete-btn') ? target : target.closest('.delete-btn');
+                if (button) {
+                    this.handleDeleteItem(event, button);
+                }
+            }
+        });
     }
     setupCropperHandlers() {
         const cropperModal = this.elements.cropperModal;
@@ -89,6 +133,48 @@ class AdminApp {
         cancelBtn?.addEventListener('click', () => this.closeCropperModal());
         const overlay = cropperModal.querySelector('.modal-overlay');
         overlay?.addEventListener('click', () => this.closeCropperModal());
+    }
+    setupProductModalHandlers() {
+        const modal = DOMUtils.getElementById('productModal');
+        const closeBtn = DOMUtils.getElementById('closeProductModal');
+        const cancelBtn = DOMUtils.getElementById('cancelProductModal');
+        const addBtn = DOMUtils.getElementById('addProductBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', this.closeProductModal.bind(this));
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', this.closeProductModal.bind(this));
+        }
+        if (addBtn) {
+            addBtn.addEventListener('click', this.showProductModal.bind(this));
+        }
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal)
+                    this.closeProductModal();
+            });
+        }
+    }
+    setupPortfolioModalHandlers() {
+        const modal = DOMUtils.getElementById('portfolioModal');
+        const closeBtn = DOMUtils.getElementById('closePortfolioModal');
+        const cancelBtn = DOMUtils.getElementById('cancelPortfolioModal');
+        const addBtn = DOMUtils.getElementById('addPortfolioBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', this.closePortfolioModal.bind(this));
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', this.closePortfolioModal.bind(this));
+        }
+        if (addBtn) {
+            addBtn.addEventListener('click', this.showPortfolioModal.bind(this));
+        }
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal)
+                    this.closePortfolioModal();
+            });
+        }
     }
     setupFormValidation() {
         const forms = this.elements.forms;
@@ -112,6 +198,74 @@ class AdminApp {
         imageInputs.forEach(input => {
             input.addEventListener('change', (e) => this.previewImage(e.target));
         });
+        this.setupAdditionalImageHandlers();
+    }
+    setupAdditionalImageHandlers() {
+        for (let i = 1; i <= 3; i++) {
+            const fileInput = DOMUtils.getElementById(`additionalImage${i}`);
+            const urlInput = DOMUtils.getElementById(`additionalImageUrl${i}`);
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    this.handleAdditionalImageUpload(e, i);
+                });
+            }
+            if (urlInput) {
+                urlInput.addEventListener('change', (e) => {
+                    const target = e.target;
+                    if (target.value) {
+                        this.showAdditionalImagePreview(target.value, i);
+                    }
+                });
+            }
+        }
+        const removeButtons = DOMUtils.querySelectorAll('.remove-additional-image');
+        removeButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const target = e.target;
+                const index = parseInt(target.dataset.index || '0');
+                if (index > 0) {
+                    this.removeAdditionalImage(index);
+                }
+            });
+        });
+    }
+    async handleAdditionalImageUpload(event, index) {
+        const input = event.target;
+        const file = input.files?.[0];
+        if (!file)
+            return;
+        try {
+            const imageUrl = await ImageUtils.fileToDataURL(file);
+            const urlInput = DOMUtils.getElementById(`additionalImageUrl${index}`);
+            if (urlInput) {
+                urlInput.value = imageUrl;
+                this.showAdditionalImagePreview(imageUrl, index);
+            }
+        }
+        catch (error) {
+            this.showMessage('Error uploading additional image', 'error');
+        }
+    }
+    showAdditionalImagePreview(imageUrl, index) {
+        const preview = DOMUtils.getElementById(`additionalPreview${index}`);
+        if (preview) {
+            const img = preview.querySelector('img');
+            if (img) {
+                img.src = imageUrl;
+                preview.style.display = 'block';
+            }
+        }
+    }
+    removeAdditionalImage(index) {
+        const preview = DOMUtils.getElementById(`additionalPreview${index}`);
+        const urlInput = DOMUtils.getElementById(`additionalImageUrl${index}`);
+        const fileInput = DOMUtils.getElementById(`additionalImage${index}`);
+        if (preview)
+            preview.style.display = 'none';
+        if (urlInput)
+            urlInput.value = '';
+        if (fileInput)
+            fileInput.value = '';
     }
     setupAutoSave() {
         const autoSaveInterval = 30000;
@@ -149,34 +303,30 @@ class AdminApp {
         container.appendChild(fragment);
     }
     createPortfolioAdminCard(item) {
-        const card = DOMUtils.createElement('div', 'admin-card');
+        const card = DOMUtils.createElement('div', 'portfolio-item');
         card.innerHTML = `
-      <div class="admin-card-image">
+      <div class="item-image">
         <img src="${item.thumbnail || item.image}" alt="${item.title}" loading="lazy">
-        <div class="admin-card-overlay">
-          <button class="btn btn-sm btn-primary edit-btn" data-id="${item.id}">
+      </div>
+      <div class="item-content">
+        <h4 class="item-title">${item.title}</h4>
+        <p class="item-description">${item.description || 'Tidak ada deskripsi'}</p>
+        <div class="item-meta">
+          <span class="item-category">${this.getCategoryName(item.category)}</span>
+          <span class="item-status status-${item.status || 'active'}">
+            ${(item.status || 'active').toUpperCase()}
+          </span>
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-small btn-primary edit-btn" data-id="${item.id}" data-type="portfolio">
             <i class="fas fa-edit"></i> Edit
           </button>
-          <button class="btn btn-sm btn-danger delete-btn" data-id="${item.id}">
+          <button class="btn btn-small btn-danger delete-btn" data-id="${item.id}" data-type="portfolio">
             <i class="fas fa-trash"></i> Delete
           </button>
         </div>
       </div>
-      <div class="admin-card-content">
-        <h4>${item.title}</h4>
-        <p class="admin-card-category">${this.getCategoryName(item.category)}</p>
-        <div class="admin-card-meta">
-          <span class="admin-card-id">ID: ${item.id}</span>
-          <span class="admin-card-status ${item.status || 'active'}">
-            ${(item.status || 'active').toUpperCase()}
-          </span>
-        </div>
-      </div>
     `;
-        const editBtn = card.querySelector('.edit-btn');
-        const deleteBtn = card.querySelector('.delete-btn');
-        editBtn?.addEventListener('click', () => this.editPortfolioItem(item.id));
-        deleteBtn?.addEventListener('click', () => this.deletePortfolioItem(item.id));
         return card;
     }
     async renderProductItems() {
@@ -196,35 +346,48 @@ class AdminApp {
         container.appendChild(fragment);
     }
     createProductAdminCard(product) {
-        const card = DOMUtils.createElement('div', 'admin-card');
-        card.innerHTML = `
-      <div class="admin-card-image">
-        <img src="${product.image}" alt="${product.name}" loading="lazy">
-        <div class="admin-card-overlay">
-          <button class="btn btn-sm btn-primary edit-btn" data-id="${product.id}">
-            <i class="fas fa-edit"></i> Edit
-          </button>
-          <button class="btn btn-sm btn-danger delete-btn" data-id="${product.id}">
-            <i class="fas fa-trash"></i> Delete
-          </button>
+        const card = DOMUtils.createElement('div', 'product-item');
+        let priceDisplay = FormatUtils.formatPrice(product.price);
+        if (product.originalPrice && product.discount && product.discount > 0) {
+            priceDisplay = `
+        <div class="price-container">
+          <span class="original-price">${FormatUtils.formatPrice(product.originalPrice)}</span>
+          <span class="current-price">${FormatUtils.formatPrice(product.price)}</span>
+          <span class="discount-badge">-${product.discount}%</span>
         </div>
+      `;
+        }
+        const categoryDisplay = product.category ? `<span class="item-category">${this.getCategoryDisplayName(product.category)}</span>` : '';
+        const typeDisplay = product.type ? `<span class="item-type ${product.type}">${product.type.toUpperCase()}</span>` : '';
+        card.innerHTML = `
+      <div class="item-image">
+        <img src="${product.image}" alt="${product.name}" loading="lazy">
+        ${product.discount && product.discount > 0 ? `<div class="discount-overlay">-${product.discount}%</div>` : ''}
       </div>
-      <div class="admin-card-content">
-        <h4>${product.name}</h4>
-        <p class="admin-card-description">${product.description}</p>
-        <div class="admin-card-price">${FormatUtils.formatPrice(product.price)}</div>
-        <div class="admin-card-meta">
-          <span class="admin-card-id">ID: ${product.id}</span>
-          <span class="admin-card-status ${product.status}">
+      <div class="item-content">
+        <h4 class="item-title">${product.name}</h4>
+        <p class="item-description">${product.description}</p>
+        <div class="item-price">${priceDisplay}</div>
+        <div class="item-meta">
+          ${categoryDisplay}
+          ${typeDisplay}
+          <span class="item-status status-${product.status}">
             ${product.status.toUpperCase()}
           </span>
         </div>
+        <div class="item-actions">
+          <button class="btn btn-small btn-primary edit-btn" data-id="${product.id}" data-type="product">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+          <button class="btn btn-small btn-danger delete-btn" data-id="${product.id}" data-type="product">
+            <i class="fas fa-trash"></i> Delete
+          </button>
+          ${product.downloadLink ? `<button class="btn btn-small btn-success download-btn" onclick="window.open('${product.downloadLink}', '_blank')">
+            <i class="fas fa-download"></i> Download
+          </button>` : ''}
+        </div>
       </div>
     `;
-        const editBtn = card.querySelector('.edit-btn');
-        const deleteBtn = card.querySelector('.delete-btn');
-        editBtn?.addEventListener('click', () => this.editProductItem(product.id));
-        deleteBtn?.addEventListener('click', () => this.deleteProductItem(product.id));
         return card;
     }
     async loadSettings() {
@@ -250,6 +413,64 @@ class AdminApp {
         this.updateStatElement('activeProducts', stats.activeProducts);
         this.updateStatElement('totalCategories', stats.totalCategories);
     }
+    handleLogin(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const username = formData.get('username');
+        const password = formData.get('password');
+        if (username === 'admin' && password === 'admin123') {
+            this.currentUser = { username: 'admin', password: 'admin123' };
+            SafeStorage.set(StorageKeys.USER_DATA, this.currentUser);
+            this.showDashboard();
+            this.showMessage('Login berhasil!', 'success');
+        }
+        else {
+            this.showMessage('Username atau password salah!', 'error');
+        }
+    }
+    handleLogout() {
+        this.currentUser = null;
+        SafeStorage.remove(StorageKeys.USER_DATA);
+        this.showLogin();
+        this.showMessage('Logout berhasil!', 'success');
+    }
+    checkAuthStatus() {
+        try {
+            const item = localStorage.getItem(StorageKeys.USER_DATA);
+            if (item) {
+                const savedUser = JSON.parse(item);
+                this.currentUser = savedUser;
+                this.showDashboard();
+            }
+            else {
+                this.showLogin();
+            }
+        }
+        catch (error) {
+            console.error('Error checking auth status:', error);
+            this.showLogin();
+        }
+    }
+    showLogin() {
+        const loginModal = DOMUtils.getElementById('loginModal');
+        const adminDashboard = DOMUtils.getElementById('adminDashboard');
+        if (loginModal)
+            DOMUtils.addClass(loginModal, 'active');
+        if (adminDashboard)
+            DOMUtils.removeClass(adminDashboard, 'active');
+    }
+    showDashboard() {
+        const loginModal = DOMUtils.getElementById('loginModal');
+        const adminDashboard = DOMUtils.getElementById('adminDashboard');
+        if (loginModal)
+            DOMUtils.removeClass(loginModal, 'active');
+        if (adminDashboard)
+            DOMUtils.addClass(adminDashboard, 'active');
+        this.renderPortfolioItems();
+        this.renderProductItems();
+        this.loadSettings();
+    }
     handleTabSwitch(event, element) {
         event.preventDefault();
         const targetTab = element.dataset.tab;
@@ -273,9 +494,11 @@ class AdminApp {
             switch (formType) {
                 case 'portfolio':
                     await this.handlePortfolioSubmit(formData);
+                    this.closePortfolioModal();
                     break;
                 case 'product':
                     await this.handleProductSubmit(formData);
+                    this.closeProductModal();
                     break;
                 case 'settings':
                     await this.handleSettingsSubmit(formData);
@@ -298,6 +521,15 @@ class AdminApp {
             description: formData.get('description'),
             status: (formData.get('status') || 'active')
         };
+        const imageInput = DOMUtils.getElementById('portfolioImage');
+        const imageUrl = this.tempImageData.portfolio || imageInput?.value || '';
+        const additionalImageUrls = [];
+        for (let i = 1; i <= 3; i++) {
+            const urlInput = DOMUtils.getElementById(`additionalImageUrl${i}`);
+            if (urlInput?.value) {
+                additionalImageUrls.push(urlInput.value);
+            }
+        }
         if (!portfolioItem.title || !portfolioItem.category) {
             throw new Error('Title and category are required');
         }
@@ -309,6 +541,8 @@ class AdminApp {
                     this.portfolioData[index] = {
                         ...existingItem,
                         ...portfolioItem,
+                        image: imageUrl || existingItem.image,
+                        additionalImages: additionalImageUrls,
                         id: existingItem.id
                     };
                 }
@@ -319,20 +553,46 @@ class AdminApp {
             const newItem = {
                 ...portfolioItem,
                 id: this.generateId(),
-                image: portfolioItem.image || ImageUtils.createPlaceholder(400, 300, portfolioItem.title || 'Portfolio Item')
+                image: imageUrl || ImageUtils.createPlaceholder(400, 300, portfolioItem.title || 'Portfolio Item'),
+                additionalImages: additionalImageUrls
             };
             this.portfolioData.push(newItem);
         }
+        delete this.tempImageData.portfolio;
         await this.savePortfolioData();
         await this.renderPortfolioItems();
     }
     async handleProductSubmit(formData) {
+        const price = parseInt(formData.get('price'));
+        const originalPrice = formData.get('originalPrice') ? parseInt(formData.get('originalPrice')) : undefined;
+        const discount = formData.get('discount') ? parseInt(formData.get('discount')) : undefined;
+        let calculatedDiscount = discount;
+        if (originalPrice && originalPrice > price) {
+            calculatedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+        }
         const productItem = {
             name: formData.get('name'),
             description: formData.get('description'),
-            price: parseInt(formData.get('price')),
+            price: price,
             status: (formData.get('status') || 'active')
         };
+        if (originalPrice !== undefined) {
+            productItem.originalPrice = originalPrice;
+        }
+        if (calculatedDiscount !== undefined) {
+            productItem.discount = calculatedDiscount;
+        }
+        if (formData.get('category')) {
+            productItem.category = formData.get('category');
+        }
+        if (formData.get('type')) {
+            productItem.type = formData.get('type');
+        }
+        if (formData.get('downloadLink')) {
+            productItem.downloadLink = formData.get('downloadLink');
+        }
+        const imageInput = DOMUtils.getElementById('productImage');
+        const imageUrl = this.tempImageData.product || imageInput?.value || '';
         if (!productItem.name || !productItem.price) {
             throw new Error('Name and price are required');
         }
@@ -344,6 +604,7 @@ class AdminApp {
                     this.productsData[index] = {
                         ...existingItem,
                         ...productItem,
+                        image: imageUrl || existingItem.image,
                         id: existingItem.id
                     };
                 }
@@ -354,10 +615,11 @@ class AdminApp {
             const newItem = {
                 ...productItem,
                 id: this.generateId(),
-                image: productItem.image || ImageUtils.createPlaceholder(300, 200, productItem.name || 'Product')
+                image: imageUrl || ImageUtils.createPlaceholder(300, 200, productItem.name || 'Product')
             };
             this.productsData.push(newItem);
         }
+        delete this.tempImageData.product;
         await this.saveProductsData();
         await this.renderProductItems();
     }
@@ -367,13 +629,18 @@ class AdminApp {
             heroTitle: formData.get('heroTitle'),
             heroSubtitle: formData.get('heroSubtitle'),
             aboutText: formData.get('aboutText'),
-            whatsappNumber: formData.get('whatsappNumber')
+            whatsappNumber: formData.get('whatsappNumber'),
+            gridLayout: formData.get('gridLayout'),
+            itemsPerPage: parseInt(formData.get('itemsPerPage')) || 9,
+            showCategories: formData.get('showCategories') === 'on',
+            enableAnimations: formData.get('enableAnimations') === 'on'
         };
         if (settings.whatsappNumber && !ValidationUtils.isValidPhoneNumber(settings.whatsappNumber)) {
             throw new Error('Invalid WhatsApp number format');
         }
         this.siteSettings = { ...this.siteSettings, ...settings };
         await this.saveSiteSettings();
+        this.showMessage('Pengaturan berhasil disimpan!', 'success');
     }
     async handleImageUpload(event, element) {
         const file = element.files?.[0];
@@ -391,7 +658,25 @@ class AdminApp {
             const imageUrl = await ImageUtils.fileToDataURL(file);
             const targetType = element.dataset.target;
             this.currentImageTarget = targetType || 'portfolio';
-            this.showCropperModal(imageUrl);
+            const useDirectly = await this.showConfirmDialog('Upload Gambar', 'Apakah Anda ingin menggunakan gambar ini langsung atau ingin mengeditnya terlebih dahulu?');
+            if (useDirectly) {
+                if (this.currentImageTarget === 'profile') {
+                    await this.applyCroppedImage(imageUrl);
+                }
+                else {
+                    this.tempImageData[this.currentImageTarget] = imageUrl;
+                    if (this.currentImageTarget === 'portfolio') {
+                        this.updatePortfolioImagePreview(imageUrl);
+                    }
+                    else if (this.currentImageTarget === 'product') {
+                        this.updateProductImagePreview(imageUrl);
+                    }
+                }
+                this.showMessage('Image uploaded successfully!', 'success');
+            }
+            else {
+                this.showCropperModal(imageUrl);
+            }
         }
         catch (error) {
             console.error('Image upload error:', error);
@@ -531,10 +816,22 @@ class AdminApp {
                 await this.updateProfileImage(imageUrl);
                 break;
             case 'portfolio':
-                await this.updatePortfolioImage(imageUrl);
+                if (this.currentEditingId) {
+                    await this.updatePortfolioImage(imageUrl);
+                }
+                else {
+                    this.tempImageData.portfolio = imageUrl;
+                    this.updatePortfolioImagePreview(imageUrl);
+                }
                 break;
             case 'product':
-                await this.updateProductImage(imageUrl);
+                if (this.currentEditingId) {
+                    await this.updateProductImage(imageUrl);
+                }
+                else {
+                    this.tempImageData.product = imageUrl;
+                    this.updateProductImagePreview(imageUrl);
+                }
                 break;
         }
     }
@@ -566,6 +863,28 @@ class AdminApp {
             await this.renderProductItems();
         }
     }
+    updatePortfolioImagePreview(imageUrl) {
+        const previewImg = DOMUtils.getElementById('portfolioPreviewImg');
+        const previewContainer = DOMUtils.getElementById('portfolioImagePreview');
+        const imageInput = DOMUtils.getElementById('portfolioImage');
+        if (previewImg)
+            previewImg.src = imageUrl;
+        if (previewContainer)
+            previewContainer.style.display = 'block';
+        if (imageInput)
+            imageInput.value = imageUrl;
+    }
+    updateProductImagePreview(imageUrl) {
+        const previewImg = DOMUtils.getElementById('productPreviewImg');
+        const previewContainer = DOMUtils.getElementById('productImagePreview');
+        const imageInput = DOMUtils.getElementById('productImage');
+        if (previewImg)
+            previewImg.src = imageUrl;
+        if (previewContainer)
+            previewContainer.style.display = 'block';
+        if (imageInput)
+            imageInput.value = imageUrl;
+    }
     editProfileImage() {
         const profileImage = this.elements.profileImage;
         const cropperImage = this.elements.cropperImage;
@@ -590,6 +909,29 @@ class AdminApp {
         this.setFormValue('category', item.category);
         this.setFormValue('description', item.description || '');
         this.setFormValue('status', item.status || 'active');
+        if (item.image) {
+            const imageInput = DOMUtils.getElementById('portfolioImage');
+            if (imageInput)
+                imageInput.value = item.image;
+            this.updatePortfolioImagePreview(item.image);
+        }
+        for (let i = 1; i <= 3; i++) {
+            const urlInput = DOMUtils.getElementById(`additionalImageUrl${i}`);
+            const preview = DOMUtils.getElementById(`additionalPreview${i}`);
+            if (item.additionalImages && item.additionalImages[i - 1]) {
+                const imageUrl = item.additionalImages[i - 1];
+                if (urlInput && imageUrl)
+                    urlInput.value = imageUrl;
+                if (imageUrl)
+                    this.showAdditionalImagePreview(imageUrl, i);
+            }
+            else {
+                if (urlInput)
+                    urlInput.value = '';
+                if (preview)
+                    preview.style.display = 'none';
+            }
+        }
         this.switchToTab('portfolio');
         const form = DOMUtils.querySelector('form[data-type="portfolio"]');
         if (form) {
@@ -604,11 +946,19 @@ class AdminApp {
         this.setFormValue('name', item.name);
         this.setFormValue('description', item.description);
         this.setFormValue('price', item.price.toString());
+        this.setFormValue('originalPrice', item.originalPrice?.toString() || '');
+        this.setFormValue('discount', item.discount?.toString() || '');
+        this.setFormValue('category', item.category || '');
+        this.setFormValue('type', item.type || 'digital');
+        this.setFormValue('downloadLink', item.downloadLink || '');
         this.setFormValue('status', item.status);
         this.switchToTab('products');
-        const form = DOMUtils.querySelector('form[data-type="product"]');
-        if (form) {
-            form.scrollIntoView({ behavior: 'smooth' });
+        const modal = DOMUtils.querySelector('#productModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const title = modal.querySelector('#productModalTitle');
+            if (title)
+                title.textContent = 'Edit Produk Digital';
         }
     }
     async deletePortfolioItem(id) {
@@ -786,14 +1136,21 @@ class AdminApp {
     }
     createConfirmDialog(title, message, callback) {
         const dialog = DOMUtils.createElement('div', 'confirm-dialog');
+        const isImageUpload = title === 'Upload Gambar';
+        const buttonsHtml = isImageUpload ? `
+      <button class="btn btn-secondary dialog-cancel">Edit Gambar</button>
+      <button class="btn btn-primary dialog-confirm">Gunakan Langsung</button>
+    ` : `
+      <button class="btn btn-secondary dialog-cancel">Cancel</button>
+      <button class="btn btn-danger dialog-confirm">Confirm</button>
+    `;
         dialog.innerHTML = `
       <div class="dialog-overlay"></div>
       <div class="dialog-content">
         <h3 class="dialog-title">${title}</h3>
         <p class="dialog-message">${message}</p>
         <div class="dialog-actions">
-          <button class="btn btn-secondary dialog-cancel">Cancel</button>
-          <button class="btn btn-danger dialog-confirm">Confirm</button>
+          ${buttonsHtml}
         </div>
       </div>
     `;
@@ -827,6 +1184,57 @@ class AdminApp {
             'editorial': 'Editorial'
         };
         return categoryNames[category] || category;
+    }
+    getCategoryDisplayName(category) {
+        const categoryMap = {
+            'brush': 'Custom Brush',
+            'font': 'Font',
+            'action': 'Action Photoshop',
+            'texture': 'Texture Pack',
+            'template': 'Template',
+            'other': 'Lainnya'
+        };
+        return categoryMap[category] || category;
+    }
+    showProductModal() {
+        const modal = DOMUtils.getElementById('productModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const form = modal.querySelector('form');
+            if (form)
+                form.reset();
+            const title = modal.querySelector('#productModalTitle');
+            if (title)
+                title.textContent = 'Tambah Produk Digital';
+            this.currentEditingId = null;
+        }
+    }
+    closeProductModal() {
+        const modal = DOMUtils.getElementById('productModal');
+        if (modal) {
+            modal.style.display = 'none';
+            this.currentEditingId = null;
+        }
+    }
+    showPortfolioModal() {
+        const modal = DOMUtils.getElementById('portfolioModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const form = modal.querySelector('form');
+            if (form)
+                form.reset();
+            const title = modal.querySelector('#portfolioModalTitle');
+            if (title)
+                title.textContent = 'Tambah Karya Portfolio';
+            this.currentEditingId = null;
+        }
+    }
+    closePortfolioModal() {
+        const modal = DOMUtils.getElementById('portfolioModal');
+        if (modal) {
+            modal.style.display = 'none';
+            this.currentEditingId = null;
+        }
     }
     getDefaultPortfolio() {
         return [

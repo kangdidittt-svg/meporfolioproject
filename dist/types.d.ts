@@ -14,12 +14,15 @@ export interface ProductItem {
     id: number;
     name: string;
     price: number;
+    originalPrice?: number;
+    discount?: number;
     description: string;
     image: string;
     status: 'active' | 'inactive';
     type?: 'digital' | 'physical';
-    category?: string;
+    category?: ProductCategoryName;
     additionalImages?: string[];
+    downloadLink?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -30,6 +33,10 @@ export interface SiteSettings {
     whatsappNumber: string;
     aboutText: string;
     profileImage?: string;
+    gridLayout?: 'masonry' | 'grid' | 'list';
+    itemsPerPage?: number;
+    showCategories?: boolean;
+    enableAnimations?: boolean;
 }
 export interface User {
     username: string;
@@ -64,7 +71,8 @@ export interface CropperConfig {
 export type MessageType = 'success' | 'error' | 'warning' | 'info';
 export type ImageTarget = 'profile' | 'portfolio' | 'product' | 'portfolio-thumbnail';
 export type TabName = 'dashboard' | 'portfolio' | 'products' | 'settings';
-export type CategoryName = 'ilustrasi' | 'character' | 'branding' | 'editorial';
+export type CategoryName = 'ilustrasi' | 'character' | 'branding' | 'editorial' | 'concept';
+export type ProductCategoryName = 'brush' | 'font' | 'action' | 'texture' | 'template' | 'other';
 export type SizeName = 'normal' | 'wide2x' | 'tall2x';
 export type ProductType = 'digital' | 'physical';
 export interface DOMElements {

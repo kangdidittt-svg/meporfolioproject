@@ -237,6 +237,11 @@ class PortfolioApp {
              alt="${item.title}" 
              loading="lazy"
              data-full-src="${item.image}">
+        <div class="portfolio-overlay">
+          <button class="preview-btn" title="Pratinjau Gambar">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
       </div>
       <div class="portfolio-content">
         <h3>${item.title}</h3>
@@ -244,9 +249,15 @@ class PortfolioApp {
       </div>
     `;
 
-    // Add click handler
-    card.addEventListener('click', () => {
-      this.showPortfolioModal(item);
+    // Add click handler for card
+    card.addEventListener('click', (e) => {
+      // Check if clicked element is the preview button
+      if ((e.target as HTMLElement).closest('.preview-btn')) {
+        e.stopPropagation();
+        this.showImagePreview(item.image, item.title);
+      } else {
+        this.showPortfolioModal(item);
+      }
     });
 
     return card;
@@ -596,16 +607,65 @@ class PortfolioApp {
       <div class="modal-content">
         <button class="modal-close">&times;</button>
         <div class="modal-image">
-          <img src="${item.image}" alt="${item.title}">
+          <img src="${item.image}" alt="${item.title}" id="modalMainImage">
         </div>
         <div class="modal-info">
           <h2>${item.title}</h2>
           <p class="modal-category">${this.getCategoryName(item.category)}</p>
           ${item.description ? `<p class="modal-description">${item.description}</p>` : ''}
-          ${item.additionalImages ? this.renderAdditionalImages(item.additionalImages) : ''}
+          ${item.additionalImages && item.additionalImages.length > 0 ? this.renderAdditionalImages(item.additionalImages) : ''}
+          <div class="contact-cta">
+            <a href="#about" class="contact-btn">
+              <i class="fas fa-envelope"></i>
+              Jika tertarik hubungi saya
+            </a>
+          </div>
         </div>
       </div>
     `;
+
+    // Setup additional image click handlers
+    const additionalImages = modal.querySelectorAll('.additional-images img');
+    const mainImage = modal.querySelector('#modalMainImage') as HTMLImageElement;
+    
+    additionalImages.forEach((img) => {
+      img.addEventListener('click', () => {
+        if (mainImage && img instanceof HTMLImageElement) {
+          mainImage.src = img.src;
+        }
+      });
+    });
+
+    // Setup contact button click handler
+    const contactBtn = modal.querySelector('.contact-btn');
+    contactBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      // Close modal first
+      DOMUtils.removeClass(modal, 'active');
+      setTimeout(() => modal.remove(), 300);
+      
+      // Navigate to about section
+      const aboutSection = DOMUtils.getElementById('about');
+      if (aboutSection) {
+        // Update navigation
+        this.domElements.navLinks?.forEach(link => DOMUtils.removeClass(link, 'active'));
+        const aboutLink = DOMUtils.querySelector('a[href="#about"]');
+        if (aboutLink) DOMUtils.addClass(aboutLink, 'active');
+        
+        // Update sections
+        this.domElements.sections?.forEach(section => DOMUtils.removeClass(section, 'active'));
+        DOMUtils.addClass(aboutSection, 'active');
+        
+        // Close mobile menu if open
+        if (this.domElements.hamburger && this.domElements.navMenu) {
+          DOMUtils.removeClass(this.domElements.hamburger, 'active');
+          DOMUtils.removeClass(this.domElements.navMenu, 'active');
+        }
+        
+        // Smooth scroll to top
+        AnimationUtils.smoothScrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
 
     return modal;
   }
@@ -621,6 +681,49 @@ class PortfolioApp {
     ).join('');
     
     return `<div class="additional-images">${imageElements}</div>`;
+  }
+
+  /**
+   * Show image preview modal
+   */
+  private showImagePreview(imageSrc: string, title: string): void {
+    const modal = DOMUtils.createElement<HTMLDivElement>('div', 'image-preview-modal');
+    
+    modal.innerHTML = `
+      <div class="modal-overlay"></div>
+      <div class="image-preview-content">
+        <button class="modal-close">&times;</button>
+        <img src="${imageSrc}" alt="${title}" loading="lazy">
+        <div class="image-preview-title">${title}</div>
+      </div>
+    `;
+
+    // Add close handlers
+    const closeBtn = modal.querySelector('.modal-close');
+    const overlay = modal.querySelector('.modal-overlay');
+    
+    const closeModal = () => {
+      modal.remove();
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    overlay?.addEventListener('click', closeModal);
+    
+    // Close on Escape key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.appendChild(modal);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+      DOMUtils.addClass(modal, 'active');
+    });
   }
 
   /**
@@ -694,48 +797,83 @@ class PortfolioApp {
         id: 1,
         title: "Digital Art",
         category: "ilustrasi",
-        image: ImageUtils.createPlaceholder(400, 300, "Digital Art")
+        description: "Karya ilustrasi digital dengan teknik painting dan detail yang kompleks. Menggabungkan elemen fantasi dengan realisme.",
+        image: ImageUtils.createPlaceholder(400, 300, "Digital Art"),
+        additionalImages: [
+          ImageUtils.createPlaceholder(400, 300, "Mockup"),
+          ImageUtils.createPlaceholder(400, 300, "Process"),
+          ImageUtils.createPlaceholder(400, 300, "Sketch")
+        ]
       },
       {
         id: 2,
         title: "Character Design",
         category: "character",
-        image: ImageUtils.createPlaceholder(400, 300, "Character")
+        description: "Desain karakter untuk game dan animasi dengan eksplorasi berbagai pose dan ekspresi.",
+        image: ImageUtils.createPlaceholder(400, 300, "Character"),
+        additionalImages: [
+          ImageUtils.createPlaceholder(400, 300, "Concept"),
+          ImageUtils.createPlaceholder(400, 300, "Turnaround"),
+          ImageUtils.createPlaceholder(400, 300, "Expression")
+        ]
       },
       {
         id: 3,
         title: "Branding Project",
         category: "branding",
-        image: ImageUtils.createPlaceholder(400, 300, "Branding")
+        description: "Identitas visual lengkap untuk startup teknologi, termasuk logo, color palette, dan aplikasi brand.",
+        image: ImageUtils.createPlaceholder(400, 300, "Branding"),
+        additionalImages: [
+          ImageUtils.createPlaceholder(400, 300, "Logo Variations"),
+          ImageUtils.createPlaceholder(400, 300, "Brand Guidelines"),
+          ImageUtils.createPlaceholder(400, 300, "Applications")
+        ]
       },
       {
         id: 4,
         title: "Editorial Illustration",
         category: "editorial",
-        image: ImageUtils.createPlaceholder(400, 300, "Editorial")
+        description: "Ilustrasi untuk artikel majalah tentang teknologi dan masa depan dengan gaya minimalis modern.",
+        image: ImageUtils.createPlaceholder(400, 300, "Editorial"),
+        additionalImages: [
+          ImageUtils.createPlaceholder(400, 300, "Layout"),
+          ImageUtils.createPlaceholder(400, 300, "Sketches")
+        ]
       },
       {
         id: 5,
         title: "Logo Design",
         category: "branding",
-        image: ImageUtils.createPlaceholder(400, 300, "Logo")
+        description: "Koleksi desain logo untuk berbagai klien dengan pendekatan yang unik dan memorable.",
+        image: ImageUtils.createPlaceholder(400, 300, "Logo"),
+        additionalImages: [
+          ImageUtils.createPlaceholder(400, 300, "Process"),
+          ImageUtils.createPlaceholder(400, 300, "Variations")
+        ]
       },
       {
         id: 6,
         title: "Book Cover",
         category: "editorial",
-        image: ImageUtils.createPlaceholder(400, 300, "Book Cover")
+        description: "Desain cover buku novel dengan ilustrasi yang menangkap esensi cerita dan menarik perhatian pembaca.",
+        image: ImageUtils.createPlaceholder(400, 300, "Book Cover"),
+        additionalImages: [
+          ImageUtils.createPlaceholder(400, 300, "Mockup"),
+          ImageUtils.createPlaceholder(400, 300, "Concept")
+        ]
       },
       {
         id: 7,
         title: "Poster Design",
         category: "ilustrasi",
+        description: "Poster promosi untuk event musik dengan komposisi dinamis dan tipografi yang kuat.",
         image: ImageUtils.createPlaceholder(400, 300, "Poster")
       },
       {
         id: 8,
         title: "Icon Set",
         category: "branding",
+        description: "Set icon untuk aplikasi mobile dengan konsistensi visual dan kemudahan penggunaan.",
         image: ImageUtils.createPlaceholder(400, 300, "Icons")
       }
     ];

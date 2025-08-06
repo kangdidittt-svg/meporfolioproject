@@ -8,6 +8,7 @@ declare class AdminApp {
     private currentEditingId;
     private isInitialized;
     private thumbnailSizes;
+    private tempImageData;
     private elements;
     constructor();
     private bindMethods;
@@ -15,9 +16,16 @@ declare class AdminApp {
     private cacheElements;
     private loadData;
     private setupEventListeners;
+    private setupEventDelegation;
     private setupCropperHandlers;
+    private setupProductModalHandlers;
+    private setupPortfolioModalHandlers;
     private setupFormValidation;
     private setupImageHandlers;
+    private setupAdditionalImageHandlers;
+    private handleAdditionalImageUpload;
+    private showAdditionalImagePreview;
+    removeAdditionalImage(index: number): void;
     private setupAutoSave;
     private renderContent;
     private renderPortfolioItems;
@@ -26,6 +34,11 @@ declare class AdminApp {
     private createProductAdminCard;
     private loadSettings;
     private updateStatistics;
+    private handleLogin;
+    private handleLogout;
+    private checkAuthStatus;
+    private showLogin;
+    private showDashboard;
     private handleTabSwitch;
     private handleFormSubmit;
     private handlePortfolioSubmit;
@@ -44,6 +57,8 @@ declare class AdminApp {
     private updateProfileImage;
     private updatePortfolioImage;
     private updateProductImage;
+    private updatePortfolioImagePreview;
+    private updateProductImagePreview;
     private editProfileImage;
     private editPortfolioItem;
     private editProductItem;
@@ -67,6 +82,11 @@ declare class AdminApp {
     private createConfirmDialog;
     private generateId;
     private getCategoryName;
+    private getCategoryDisplayName;
+    private showProductModal;
+    private closeProductModal;
+    private showPortfolioModal;
+    private closePortfolioModal;
     private getDefaultPortfolio;
     private getDefaultProducts;
     private getDefaultSettings;

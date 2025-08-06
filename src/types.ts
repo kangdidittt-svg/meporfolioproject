@@ -19,12 +19,15 @@ export interface ProductItem {
   id: number;
   name: string;
   price: number;
+  originalPrice?: number; // For discount calculation
+  discount?: number; // Discount percentage (0-100)
   description: string;
   image: string;
   status: 'active' | 'inactive';
   type?: 'digital' | 'physical';
-  category?: string;
+  category?: ProductCategoryName;
   additionalImages?: string[];
+  downloadLink?: string; // For digital products
   createdAt?: string;
   updatedAt?: string;
 }
@@ -37,6 +40,10 @@ export interface SiteSettings {
   whatsappNumber: string;
   aboutText: string;
   profileImage?: string;
+  gridLayout?: 'masonry' | 'grid' | 'list';
+  itemsPerPage?: number;
+  showCategories?: boolean;
+  enableAnimations?: boolean;
 }
 
 // User Interface
@@ -87,7 +94,10 @@ export type ImageTarget = 'profile' | 'portfolio' | 'product' | 'portfolio-thumb
 export type TabName = 'dashboard' | 'portfolio' | 'products' | 'settings';
 
 // Category Names
-export type CategoryName = 'ilustrasi' | 'character' | 'branding' | 'editorial';
+export type CategoryName = 'ilustrasi' | 'character' | 'branding' | 'editorial' | 'concept';
+
+// Product Category Names
+export type ProductCategoryName = 'brush' | 'font' | 'action' | 'texture' | 'template' | 'other';
 
 // Size Names
 export type SizeName = 'normal' | 'wide2x' | 'tall2x';

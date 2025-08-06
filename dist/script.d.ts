@@ -35,6 +35,7 @@ declare class PortfolioApp {
     private showPortfolioModal;
     private createPortfolioModal;
     private renderAdditionalImages;
+    private showImagePreview;
     private closeAllModals;
     private adjustPortfolioGrid;
     private setupImageLoadHandlers;

@@ -10,6 +10,7 @@ import {
   ImageTarget,
   TabName,
   CategoryName,
+  ProductCategoryName,
   SizeName,
   ProductType,
   StorageKeys,
@@ -46,6 +47,7 @@ class AdminApp {
   private currentEditingId: Nullable<number> = null;
   private isInitialized = false;
   private thumbnailSizes: ThumbnailSize[] = [];
+  private tempImageData: { [key: string]: string } = {};
 
   // DOM Elements Cache
   private elements: {
@@ -75,6 +77,12 @@ class AdminApp {
     this.handleCropperSave = this.handleCropperSave.bind(this);
     this.handleDeleteItem = this.handleDeleteItem.bind(this);
     this.handleEditItem = this.handleEditItem.bind(this);
+    this.handleLogin = this.handleLogin.bind(this);
+    this.handleLogout = this.handleLogout.bind(this);
+    this.showProductModal = this.showProductModal.bind(this);
+    this.closeProductModal = this.closeProductModal.bind(this);
+    this.showPortfolioModal = this.showPortfolioModal.bind(this);
+    this.closePortfolioModal = this.closePortfolioModal.bind(this);
   }
 
   /**
@@ -87,6 +95,7 @@ class AdminApp {
 
     try {
       this.cacheElements();
+      this.checkAuthStatus();
       await this.loadData();
       this.setupEventListeners();
       await this.renderContent();
@@ -96,7 +105,6 @@ class AdminApp {
       this.isInitialized = true;
       PerformanceUtils.measure('Admin Initialization', 'admin-init-start');
       
-      this.showMessage('Admin panel loaded successfully!', 'success');
       console.log('🔧 Admin panel initialized with TypeScript!');
     } catch (error) {
       console.error('❌ Failed to initialize admin panel:', error);
@@ -109,12 +117,12 @@ class AdminApp {
    */
   private cacheElements(): void {
     this.elements = {
-      portfolioGrid: DOMUtils.getElementById<HTMLElement>('portfolioGrid'),
-      productsGrid: DOMUtils.getElementById<HTMLElement>('productsGrid'),
+      portfolioGrid: DOMUtils.getElementById<HTMLElement>('portfolioList'),
+      productsGrid: DOMUtils.getElementById<HTMLElement>('productsList'),
       cropperModal: DOMUtils.getElementById<HTMLElement>('cropperModal'),
       cropperImage: DOMUtils.getElementById<HTMLImageElement>('cropperImage'),
       profileImage: DOMUtils.getElementById<HTMLImageElement>('profileImage'),
-      tabButtons: DOMUtils.querySelectorAll<HTMLElement>('.tab-btn'),
+      tabButtons: DOMUtils.querySelectorAll<HTMLElement>('.nav-tab'),
       tabContents: DOMUtils.querySelectorAll<HTMLElement>('.tab-content'),
       forms: DOMUtils.querySelectorAll<HTMLFormElement>('form')
     };
@@ -138,6 +146,17 @@ class AdminApp {
     // Load user data
     this.currentUser = SafeStorage.get(StorageKeys.USER_DATA, null);
 
+    // Save default data if not exists
+    if (!SafeStorage.get(StorageKeys.PORTFOLIO_DATA, null)) {
+      SafeStorage.set(StorageKeys.PORTFOLIO_DATA, this.portfolioData);
+    }
+    if (!SafeStorage.get(StorageKeys.PRODUCTS_DATA, null)) {
+      SafeStorage.set(StorageKeys.PRODUCTS_DATA, this.productsData);
+    }
+    if (!SafeStorage.get(StorageKeys.SITE_SETTINGS, null)) {
+      SafeStorage.set(StorageKeys.SITE_SETTINGS, this.siteSettings);
+    }
+
     PerformanceUtils.measure('Admin Data Loading', 'admin-data-load-start');
   }
 
@@ -145,6 +164,18 @@ class AdminApp {
    * Setup event listeners
    */
   private setupEventListeners(): void {
+    // Login form
+    const loginForm = DOMUtils.getElementById<HTMLFormElement>('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', this.handleLogin);
+    }
+
+    // Logout button
+    const logoutBtn = DOMUtils.getElementById<HTMLButtonElement>('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', this.handleLogout);
+    }
+
     // Tab switching
     if (this.elements.tabButtons) {
       DOMUtils.addEventListeners(
@@ -173,6 +204,41 @@ class AdminApp {
 
     // Auto-save functionality
     this.setupAutoSave();
+
+    // Product modal handlers
+    this.setupProductModalHandlers();
+
+    // Portfolio modal handlers
+    this.setupPortfolioModalHandlers();
+
+    // Event delegation for dynamic buttons
+    this.setupEventDelegation();
+  }
+
+  /**
+   * Setup event delegation for dynamically created buttons
+   */
+  private setupEventDelegation(): void {
+    // Event delegation for edit and delete buttons
+    document.addEventListener('click', (event: Event) => {
+      const target = event.target as HTMLElement;
+      
+      // Handle edit buttons
+      if (target.classList.contains('edit-btn') || target.closest('.edit-btn')) {
+        const button = target.classList.contains('edit-btn') ? target : target.closest('.edit-btn') as HTMLElement;
+        if (button) {
+          this.handleEditItem(event, button);
+        }
+      }
+      
+      // Handle delete buttons
+      if (target.classList.contains('delete-btn') || target.closest('.delete-btn')) {
+        const button = target.classList.contains('delete-btn') ? target : target.closest('.delete-btn') as HTMLElement;
+        if (button) {
+          this.handleDeleteItem(event, button);
+        }
+      }
+    });
   }
 
   /**
@@ -193,6 +259,62 @@ class AdminApp {
     // Close on overlay click
     const overlay = cropperModal.querySelector('.modal-overlay');
     overlay?.addEventListener('click', () => this.closeCropperModal());
+  }
+
+  /**
+   * Setup product modal handlers
+   */
+  private setupProductModalHandlers(): void {
+    const modal = DOMUtils.getElementById<HTMLElement>('productModal');
+    const closeBtn = DOMUtils.getElementById<HTMLButtonElement>('closeProductModal');
+    const cancelBtn = DOMUtils.getElementById<HTMLButtonElement>('cancelProductModal');
+    const addBtn = DOMUtils.getElementById<HTMLButtonElement>('addProductBtn');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', this.closeProductModal.bind(this));
+    }
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', this.closeProductModal.bind(this));
+    }
+
+    if (addBtn) {
+      addBtn.addEventListener('click', this.showProductModal.bind(this));
+    }
+
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) this.closeProductModal();
+      });
+    }
+  }
+
+  /**
+   * Setup portfolio modal handlers
+   */
+  private setupPortfolioModalHandlers(): void {
+    const modal = DOMUtils.getElementById<HTMLElement>('portfolioModal');
+    const closeBtn = DOMUtils.getElementById<HTMLButtonElement>('closePortfolioModal');
+    const cancelBtn = DOMUtils.getElementById<HTMLButtonElement>('cancelPortfolioModal');
+    const addBtn = DOMUtils.getElementById<HTMLButtonElement>('addPortfolioBtn');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', this.closePortfolioModal.bind(this));
+    }
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', this.closePortfolioModal.bind(this));
+    }
+
+    if (addBtn) {
+      addBtn.addEventListener('click', this.showPortfolioModal.bind(this));
+    }
+
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) this.closePortfolioModal();
+      });
+    }
   }
 
   /**
@@ -228,6 +350,93 @@ class AdminApp {
     imageInputs.forEach(input => {
       input.addEventListener('change', (e) => this.previewImage(e.target as HTMLInputElement));
     });
+
+    // Setup additional image handlers
+    this.setupAdditionalImageHandlers();
+  }
+
+  /**
+   * Setup additional image handlers
+   */
+  private setupAdditionalImageHandlers(): void {
+    for (let i = 1; i <= 3; i++) {
+      const fileInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImage${i}`);
+      const urlInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImageUrl${i}`);
+      
+      if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+          this.handleAdditionalImageUpload(e, i);
+        });
+      }
+      
+      if (urlInput) {
+        urlInput.addEventListener('change', (e) => {
+          const target = e.target as HTMLInputElement;
+          if (target.value) {
+            this.showAdditionalImagePreview(target.value, i);
+          }
+        });
+      }
+    }
+
+    // Setup remove buttons
+    const removeButtons = DOMUtils.querySelectorAll<HTMLButtonElement>('.remove-additional-image');
+    removeButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const target = e.target as HTMLButtonElement;
+        const index = parseInt(target.dataset.index || '0');
+        if (index > 0) {
+          this.removeAdditionalImage(index);
+        }
+      });
+    });
+  }
+
+  /**
+   * Handle additional image upload
+   */
+  private async handleAdditionalImageUpload(event: Event, index: number): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      const imageUrl = await ImageUtils.fileToDataURL(file);
+      const urlInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImageUrl${index}`);
+      if (urlInput) {
+        urlInput.value = imageUrl;
+        this.showAdditionalImagePreview(imageUrl, index);
+      }
+    } catch (error) {
+      this.showMessage('Error uploading additional image', 'error');
+    }
+  }
+
+  /**
+   * Show additional image preview
+   */
+  private showAdditionalImagePreview(imageUrl: string, index: number): void {
+    const preview = DOMUtils.getElementById<HTMLElement>(`additionalPreview${index}`);
+    if (preview) {
+      const img = preview.querySelector('img');
+      if (img) {
+        img.src = imageUrl;
+        preview.style.display = 'block';
+      }
+    }
+  }
+
+  /**
+   * Remove additional image
+   */
+  public removeAdditionalImage(index: number): void {
+    const preview = DOMUtils.getElementById<HTMLElement>(`additionalPreview${index}`);
+    const urlInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImageUrl${index}`);
+    const fileInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImage${index}`);
+    
+    if (preview) preview.style.display = 'none';
+    if (urlInput) urlInput.value = '';
+    if (fileInput) fileInput.value = '';
   }
 
   /**
@@ -290,38 +499,31 @@ class AdminApp {
    * Create portfolio admin card
    */
   private createPortfolioAdminCard(item: PortfolioItem): HTMLElement {
-    const card = DOMUtils.createElement<HTMLDivElement>('div', 'admin-card');
+    const card = DOMUtils.createElement<HTMLDivElement>('div', 'portfolio-item');
     
     card.innerHTML = `
-      <div class="admin-card-image">
+      <div class="item-image">
         <img src="${item.thumbnail || item.image}" alt="${item.title}" loading="lazy">
-        <div class="admin-card-overlay">
-          <button class="btn btn-sm btn-primary edit-btn" data-id="${item.id}">
+      </div>
+      <div class="item-content">
+        <h4 class="item-title">${item.title}</h4>
+        <p class="item-description">${item.description || 'Tidak ada deskripsi'}</p>
+        <div class="item-meta">
+          <span class="item-category">${this.getCategoryName(item.category)}</span>
+          <span class="item-status status-${item.status || 'active'}">
+            ${(item.status || 'active').toUpperCase()}
+          </span>
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-small btn-primary edit-btn" data-id="${item.id}" data-type="portfolio">
             <i class="fas fa-edit"></i> Edit
           </button>
-          <button class="btn btn-sm btn-danger delete-btn" data-id="${item.id}">
+          <button class="btn btn-small btn-danger delete-btn" data-id="${item.id}" data-type="portfolio">
             <i class="fas fa-trash"></i> Delete
           </button>
         </div>
       </div>
-      <div class="admin-card-content">
-        <h4>${item.title}</h4>
-        <p class="admin-card-category">${this.getCategoryName(item.category)}</p>
-        <div class="admin-card-meta">
-          <span class="admin-card-id">ID: ${item.id}</span>
-          <span class="admin-card-status ${item.status || 'active'}">
-            ${(item.status || 'active').toUpperCase()}
-          </span>
-        </div>
-      </div>
     `;
-
-    // Add event listeners
-    const editBtn = card.querySelector('.edit-btn');
-    const deleteBtn = card.querySelector('.delete-btn');
-
-    editBtn?.addEventListener('click', () => this.editPortfolioItem(item.id));
-    deleteBtn?.addEventListener('click', () => this.deletePortfolioItem(item.id));
 
     return card;
   }
@@ -354,39 +556,53 @@ class AdminApp {
    * Create product admin card
    */
   private createProductAdminCard(product: ProductItem): HTMLElement {
-    const card = DOMUtils.createElement<HTMLDivElement>('div', 'admin-card');
+    const card = DOMUtils.createElement<HTMLDivElement>('div', 'product-item');
+    
+    // Create price display with discount
+    let priceDisplay = FormatUtils.formatPrice(product.price);
+    if (product.originalPrice && product.discount && product.discount > 0) {
+      priceDisplay = `
+        <div class="price-container">
+          <span class="original-price">${FormatUtils.formatPrice(product.originalPrice)}</span>
+          <span class="current-price">${FormatUtils.formatPrice(product.price)}</span>
+          <span class="discount-badge">-${product.discount}%</span>
+        </div>
+      `;
+    }
+    
+    // Create category and type display
+    const categoryDisplay = product.category ? `<span class="item-category">${this.getCategoryDisplayName(product.category)}</span>` : '';
+    const typeDisplay = product.type ? `<span class="item-type ${product.type}">${product.type.toUpperCase()}</span>` : '';
     
     card.innerHTML = `
-      <div class="admin-card-image">
+      <div class="item-image">
         <img src="${product.image}" alt="${product.name}" loading="lazy">
-        <div class="admin-card-overlay">
-          <button class="btn btn-sm btn-primary edit-btn" data-id="${product.id}">
-            <i class="fas fa-edit"></i> Edit
-          </button>
-          <button class="btn btn-sm btn-danger delete-btn" data-id="${product.id}">
-            <i class="fas fa-trash"></i> Delete
-          </button>
-        </div>
+        ${product.discount && product.discount > 0 ? `<div class="discount-overlay">-${product.discount}%</div>` : ''}
       </div>
-      <div class="admin-card-content">
-        <h4>${product.name}</h4>
-        <p class="admin-card-description">${product.description}</p>
-        <div class="admin-card-price">${FormatUtils.formatPrice(product.price)}</div>
-        <div class="admin-card-meta">
-          <span class="admin-card-id">ID: ${product.id}</span>
-          <span class="admin-card-status ${product.status}">
+      <div class="item-content">
+        <h4 class="item-title">${product.name}</h4>
+        <p class="item-description">${product.description}</p>
+        <div class="item-price">${priceDisplay}</div>
+        <div class="item-meta">
+          ${categoryDisplay}
+          ${typeDisplay}
+          <span class="item-status status-${product.status}">
             ${product.status.toUpperCase()}
           </span>
         </div>
+        <div class="item-actions">
+          <button class="btn btn-small btn-primary edit-btn" data-id="${product.id}" data-type="product">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+          <button class="btn btn-small btn-danger delete-btn" data-id="${product.id}" data-type="product">
+            <i class="fas fa-trash"></i> Delete
+          </button>
+          ${product.downloadLink ? `<button class="btn btn-small btn-success download-btn" onclick="window.open('${product.downloadLink}', '_blank')">
+            <i class="fas fa-download"></i> Download
+          </button>` : ''}
+        </div>
       </div>
     `;
-
-    // Add event listeners
-    const editBtn = card.querySelector('.edit-btn');
-    const deleteBtn = card.querySelector('.delete-btn');
-
-    editBtn?.addEventListener('click', () => this.editProductItem(product.id));
-    deleteBtn?.addEventListener('click', () => this.deleteProductItem(product.id));
 
     return card;
   }
@@ -435,6 +651,86 @@ class AdminApp {
     this.updateStatElement('totalCategories', stats.totalCategories);
   }
 
+  // Authentication Methods
+
+  /**
+   * Handle login form submission
+   */
+  private handleLogin(event: Event): void {
+    event.preventDefault();
+    
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const username = formData.get('username') as string;
+    const password = formData.get('password') as string;
+    
+    // Simple authentication (in real app, use proper authentication)
+     if (username === 'admin' && password === 'admin123') {
+       this.currentUser = { username: 'admin', password: 'admin123' };
+       SafeStorage.set(StorageKeys.USER_DATA, this.currentUser);
+       this.showDashboard();
+       this.showMessage('Login berhasil!', 'success');
+     } else {
+       this.showMessage('Username atau password salah!', 'error');
+     }
+  }
+
+  /**
+   * Handle logout
+   */
+  private handleLogout(): void {
+     this.currentUser = null;
+     SafeStorage.remove(StorageKeys.USER_DATA);
+     this.showLogin();
+     this.showMessage('Logout berhasil!', 'success');
+   }
+
+  /**
+   * Check authentication status
+   */
+  private checkAuthStatus(): void {
+      try {
+        const item = localStorage.getItem(StorageKeys.USER_DATA);
+        if (item) {
+          const savedUser = JSON.parse(item) as User;
+          this.currentUser = savedUser;
+          this.showDashboard();
+        } else {
+          this.showLogin();
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        this.showLogin();
+      }
+    }
+
+  /**
+   * Show login modal
+   */
+  private showLogin(): void {
+    const loginModal = DOMUtils.getElementById('loginModal');
+    const adminDashboard = DOMUtils.getElementById('adminDashboard');
+    
+    if (loginModal) DOMUtils.addClass(loginModal, 'active');
+    if (adminDashboard) DOMUtils.removeClass(adminDashboard, 'active');
+  }
+
+  /**
+   * Show admin dashboard
+   */
+  private showDashboard(): void {
+    const loginModal = DOMUtils.getElementById('loginModal');
+    const adminDashboard = DOMUtils.getElementById('adminDashboard');
+    
+    if (loginModal) DOMUtils.removeClass(loginModal, 'active');
+    if (adminDashboard) DOMUtils.addClass(adminDashboard, 'active');
+    
+    // Load dashboard data
+    this.renderPortfolioItems();
+    this.renderProductItems();
+    this.loadSettings();
+  }
+
   // Event Handlers
 
   /**
@@ -476,9 +772,11 @@ class AdminApp {
       switch (formType) {
         case 'portfolio':
           await this.handlePortfolioSubmit(formData);
+          this.closePortfolioModal();
           break;
         case 'product':
           await this.handleProductSubmit(formData);
+          this.closeProductModal();
           break;
         case 'settings':
           await this.handleSettingsSubmit(formData);
@@ -506,6 +804,19 @@ class AdminApp {
       status: ((formData.get('status') as string) || 'active') as 'active' | 'inactive'
     };
 
+    // Get image from form or temp storage
+    const imageInput = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
+    const imageUrl = this.tempImageData.portfolio || imageInput?.value || '';
+
+    // Collect additional images
+    const additionalImageUrls: string[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const urlInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImageUrl${i}`);
+      if (urlInput?.value) {
+        additionalImageUrls.push(urlInput.value);
+      }
+    }
+
     // Validate required fields
     if (!portfolioItem.title || !portfolioItem.category) {
       throw new Error('Title and category are required');
@@ -520,6 +831,8 @@ class AdminApp {
         this.portfolioData[index] = { 
           ...existingItem, 
           ...portfolioItem,
+          image: imageUrl || existingItem.image,
+          additionalImages: additionalImageUrls,
           id: existingItem.id // Keep original ID
         } as PortfolioItem;
       }
@@ -530,10 +843,14 @@ class AdminApp {
       const newItem: PortfolioItem = {
         ...portfolioItem as PortfolioItem,
         id: this.generateId(),
-        image: portfolioItem.image || ImageUtils.createPlaceholder(400, 300, portfolioItem.title || 'Portfolio Item')
+        image: imageUrl || ImageUtils.createPlaceholder(400, 300, portfolioItem.title || 'Portfolio Item'),
+        additionalImages: additionalImageUrls
       };
       this.portfolioData.push(newItem);
     }
+
+    // Clear temp image data
+    delete this.tempImageData.portfolio;
 
     await this.savePortfolioData();
     await this.renderPortfolioItems();
@@ -543,12 +860,43 @@ class AdminApp {
    * Handle product form submission
    */
   private async handleProductSubmit(formData: FormData): Promise<void> {
+    const price = parseInt(formData.get('price') as string);
+    const originalPrice = formData.get('originalPrice') ? parseInt(formData.get('originalPrice') as string) : undefined;
+    const discount = formData.get('discount') ? parseInt(formData.get('discount') as string) : undefined;
+    
+    // Calculate discount if original price is provided
+    let calculatedDiscount = discount;
+    if (originalPrice && originalPrice > price) {
+      calculatedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+    }
+    
     const productItem: Partial<ProductItem> = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
-      price: parseInt(formData.get('price') as string),
+      price: price,
       status: ((formData.get('status') as string) || 'active') as 'active' | 'inactive'
     };
+
+    // Add optional fields only if they have values
+    if (originalPrice !== undefined) {
+      productItem.originalPrice = originalPrice;
+    }
+    if (calculatedDiscount !== undefined) {
+      productItem.discount = calculatedDiscount;
+    }
+    if (formData.get('category')) {
+      productItem.category = formData.get('category') as ProductCategoryName;
+    }
+    if (formData.get('type')) {
+      productItem.type = formData.get('type') as 'digital' | 'physical';
+    }
+    if (formData.get('downloadLink')) {
+      productItem.downloadLink = formData.get('downloadLink') as string;
+    }
+
+    // Get image from form or temp storage
+    const imageInput = DOMUtils.getElementById<HTMLInputElement>('productImage');
+    const imageUrl = this.tempImageData.product || imageInput?.value || '';
 
     // Validate required fields
     if (!productItem.name || !productItem.price) {
@@ -564,6 +912,7 @@ class AdminApp {
         this.productsData[index] = { 
           ...existingItem, 
           ...productItem,
+          image: imageUrl || existingItem.image,
           id: existingItem.id // Keep original ID
         } as ProductItem;
       }
@@ -574,10 +923,13 @@ class AdminApp {
       const newItem: ProductItem = {
         ...productItem as ProductItem,
         id: this.generateId(),
-        image: productItem.image || ImageUtils.createPlaceholder(300, 200, productItem.name || 'Product')
+        image: imageUrl || ImageUtils.createPlaceholder(300, 200, productItem.name || 'Product')
       };
       this.productsData.push(newItem);
     }
+
+    // Clear temp image data
+    delete this.tempImageData.product;
 
     await this.saveProductsData();
     await this.renderProductItems();
@@ -592,7 +944,11 @@ class AdminApp {
       heroTitle: formData.get('heroTitle') as string,
       heroSubtitle: formData.get('heroSubtitle') as string,
       aboutText: formData.get('aboutText') as string,
-      whatsappNumber: formData.get('whatsappNumber') as string
+      whatsappNumber: formData.get('whatsappNumber') as string,
+      gridLayout: formData.get('gridLayout') as 'masonry' | 'grid' | 'list',
+      itemsPerPage: parseInt(formData.get('itemsPerPage') as string) || 9,
+      showCategories: formData.get('showCategories') === 'on',
+      enableAnimations: formData.get('enableAnimations') === 'on'
     };
 
     // Validate WhatsApp number
@@ -602,6 +958,9 @@ class AdminApp {
 
     this.siteSettings = { ...this.siteSettings, ...settings };
     await this.saveSiteSettings();
+    
+    // Show success message
+    this.showMessage('Pengaturan berhasil disimpan!', 'success');
   }
 
   /**
@@ -627,7 +986,31 @@ class AdminApp {
       const targetType = element.dataset.target as ImageTarget;
       
       this.currentImageTarget = targetType || 'portfolio';
-      this.showCropperModal(imageUrl);
+      
+      // Show confirmation dialog for direct upload or cropping
+      const useDirectly = await this.showConfirmDialog(
+        'Upload Gambar',
+        'Apakah Anda ingin menggunakan gambar ini langsung atau ingin mengeditnya terlebih dahulu?'
+      );
+      
+      if (useDirectly) {
+        // Apply image directly without cropping
+        if (this.currentImageTarget === 'profile') {
+          await this.applyCroppedImage(imageUrl);
+        } else {
+          // For portfolio and product, store in temp data
+          this.tempImageData[this.currentImageTarget] = imageUrl;
+          if (this.currentImageTarget === 'portfolio') {
+            this.updatePortfolioImagePreview(imageUrl);
+          } else if (this.currentImageTarget === 'product') {
+            this.updateProductImagePreview(imageUrl);
+          }
+        }
+        this.showMessage('Image uploaded successfully!', 'success');
+      } else {
+        // Show cropper modal for editing
+        this.showCropperModal(imageUrl);
+      }
     } catch (error) {
       console.error('Image upload error:', error);
       this.showMessage('Failed to process image', 'error');
@@ -826,10 +1209,22 @@ class AdminApp {
         await this.updateProfileImage(imageUrl);
         break;
       case 'portfolio':
-        await this.updatePortfolioImage(imageUrl);
+        if (this.currentEditingId) {
+          await this.updatePortfolioImage(imageUrl);
+        } else {
+          // Store image temporarily for new items
+          this.tempImageData.portfolio = imageUrl;
+          this.updatePortfolioImagePreview(imageUrl);
+        }
         break;
       case 'product':
-        await this.updateProductImage(imageUrl);
+        if (this.currentEditingId) {
+          await this.updateProductImage(imageUrl);
+        } else {
+          // Store image temporarily for new items
+          this.tempImageData.product = imageUrl;
+          this.updateProductImagePreview(imageUrl);
+        }
         break;
     }
   }
@@ -877,6 +1272,32 @@ class AdminApp {
   }
 
   /**
+   * Update portfolio image preview
+   */
+  private updatePortfolioImagePreview(imageUrl: string): void {
+    const previewImg = DOMUtils.getElementById<HTMLImageElement>('portfolioPreviewImg');
+    const previewContainer = DOMUtils.getElementById<HTMLElement>('portfolioImagePreview');
+    const imageInput = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
+    
+    if (previewImg) previewImg.src = imageUrl;
+    if (previewContainer) previewContainer.style.display = 'block';
+    if (imageInput) imageInput.value = imageUrl;
+  }
+
+  /**
+   * Update product image preview
+   */
+  private updateProductImagePreview(imageUrl: string): void {
+    const previewImg = DOMUtils.getElementById<HTMLImageElement>('productPreviewImg');
+    const previewContainer = DOMUtils.getElementById<HTMLElement>('productImagePreview');
+    const imageInput = DOMUtils.getElementById<HTMLInputElement>('productImage');
+    
+    if (previewImg) previewImg.src = imageUrl;
+    if (previewContainer) previewContainer.style.display = 'block';
+    if (imageInput) imageInput.value = imageUrl;
+  }
+
+  /**
    * Edit profile image
    */
   private editProfileImage(): void {
@@ -914,6 +1335,28 @@ class AdminApp {
     this.setFormValue('description', item.description || '');
     this.setFormValue('status', item.status || 'active');
 
+    // Load main image
+    if (item.image) {
+      const imageInput = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
+      if (imageInput) imageInput.value = item.image;
+      this.updatePortfolioImagePreview(item.image);
+    }
+
+    // Load additional images
+    for (let i = 1; i <= 3; i++) {
+      const urlInput = DOMUtils.getElementById<HTMLInputElement>(`additionalImageUrl${i}`);
+      const preview = DOMUtils.getElementById<HTMLElement>(`additionalPreview${i}`);
+      
+      if (item.additionalImages && item.additionalImages[i - 1]) {
+        const imageUrl = item.additionalImages[i - 1];
+        if (urlInput && imageUrl) urlInput.value = imageUrl;
+        if (imageUrl) this.showAdditionalImagePreview(imageUrl, i);
+      } else {
+        if (urlInput) urlInput.value = '';
+        if (preview) preview.style.display = 'none';
+      }
+    }
+
     // Switch to portfolio tab
     this.switchToTab('portfolio');
     
@@ -937,15 +1380,23 @@ class AdminApp {
     this.setFormValue('name', item.name);
     this.setFormValue('description', item.description);
     this.setFormValue('price', item.price.toString());
+    this.setFormValue('originalPrice', item.originalPrice?.toString() || '');
+    this.setFormValue('discount', item.discount?.toString() || '');
+    this.setFormValue('category', item.category || '');
+    this.setFormValue('type', item.type || 'digital');
+    this.setFormValue('downloadLink', item.downloadLink || '');
     this.setFormValue('status', item.status);
 
     // Switch to products tab
     this.switchToTab('products');
     
-    // Scroll to form
-    const form = DOMUtils.querySelector<HTMLElement>('form[data-type="product"]');
-    if (form) {
-      form.scrollIntoView({ behavior: 'smooth' });
+    // Show product modal
+    const modal = DOMUtils.querySelector<HTMLElement>('#productModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Update modal title
+      const title = modal.querySelector('#productModalTitle');
+      if (title) title.textContent = 'Edit Produk Digital';
     }
   }
 
@@ -1217,14 +1668,24 @@ class AdminApp {
   private createConfirmDialog(title: string, message: string, callback: (result: boolean) => void): HTMLElement {
     const dialog = DOMUtils.createElement<HTMLDivElement>('div', 'confirm-dialog');
     
+    // Check if this is an image upload dialog
+    const isImageUpload = title === 'Upload Gambar';
+    
+    const buttonsHtml = isImageUpload ? `
+      <button class="btn btn-secondary dialog-cancel">Edit Gambar</button>
+      <button class="btn btn-primary dialog-confirm">Gunakan Langsung</button>
+    ` : `
+      <button class="btn btn-secondary dialog-cancel">Cancel</button>
+      <button class="btn btn-danger dialog-confirm">Confirm</button>
+    `;
+    
     dialog.innerHTML = `
       <div class="dialog-overlay"></div>
       <div class="dialog-content">
         <h3 class="dialog-title">${title}</h3>
         <p class="dialog-message">${message}</p>
         <div class="dialog-actions">
-          <button class="btn btn-secondary dialog-cancel">Cancel</button>
-          <button class="btn btn-danger dialog-confirm">Confirm</button>
+          ${buttonsHtml}
         </div>
       </div>
     `;
@@ -1273,6 +1734,78 @@ class AdminApp {
     };
     
     return categoryNames[category] || category;
+  }
+
+  /**
+   * Get display name for product category
+   */
+  private getCategoryDisplayName(category: string): string {
+    const categoryMap: Record<string, string> = {
+      'brush': 'Custom Brush',
+      'font': 'Font',
+      'action': 'Action Photoshop',
+      'texture': 'Texture Pack',
+      'template': 'Template',
+      'other': 'Lainnya'
+    };
+    
+    return categoryMap[category] || category;
+  }
+
+  /**
+   * Show product modal
+   */
+  private showProductModal(): void {
+    const modal = DOMUtils.getElementById<HTMLElement>('productModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Reset form
+      const form = modal.querySelector('form');
+      if (form) form.reset();
+      // Update modal title
+      const title = modal.querySelector('#productModalTitle');
+      if (title) title.textContent = 'Tambah Produk Digital';
+      this.currentEditingId = null;
+    }
+  }
+
+  /**
+   * Close product modal
+   */
+  private closeProductModal(): void {
+    const modal = DOMUtils.getElementById<HTMLElement>('productModal');
+    if (modal) {
+      modal.style.display = 'none';
+      this.currentEditingId = null;
+    }
+  }
+
+  /**
+   * Show portfolio modal
+   */
+  private showPortfolioModal(): void {
+    const modal = DOMUtils.getElementById<HTMLElement>('portfolioModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Reset form
+      const form = modal.querySelector('form');
+      if (form) form.reset();
+      // Update modal title
+      const title = modal.querySelector('#portfolioModalTitle');
+      if (title) title.textContent = 'Tambah Karya Portfolio';
+      this.currentEditingId = null;
+    }
+  }
+
+  /**
+   * Close portfolio modal
+   */
+  private closePortfolioModal(): void {
+    const modal = DOMUtils.getElementById<HTMLElement>('portfolioModal');
+    if (modal) {
+      modal.style.display = 'none';
+      this.currentEditingId = null;
+    }
   }
 
   // Default Data Methods

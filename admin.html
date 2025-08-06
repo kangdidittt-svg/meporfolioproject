@@ -18,11 +18,11 @@
             <form id="loginForm">
                 <div class="form-group">
                     <label for="username">Username:</label>
-                    <input type="text" id="username" required>
+                    <input type="text" id="username" name="username" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password:</label>
-                    <input type="password" id="password" required>
+                    <input type="password" id="password" name="password" required>
                 </div>
                 <button type="submit" class="btn-primary">Login</button>
             </form>
@@ -113,36 +113,76 @@
                 </div>
             </div>
             
-            <div class="settings-form">
+            <form id="settingsForm" data-type="settings" class="settings-form">
                 <div class="form-group">
                     <label for="siteName">Nama Website:</label>
-                    <input type="text" id="siteName" value="Portfolio Ilustrator">
+                    <input type="text" id="siteName" name="siteName" value="Portfolio Ilustrator">
                 </div>
                 
                 <div class="form-group">
                     <label for="heroTitle">Judul Hero:</label>
-                    <input type="text" id="heroTitle" value="Ilustrator & Desainer">
+                    <input type="text" id="heroTitle" name="heroTitle" value="Ilustrator & Desainer">
                 </div>
                 
                 <div class="form-group">
                     <label for="heroSubtitle">Subtitle Hero:</label>
-                    <textarea id="heroSubtitle">Menciptakan karya visual yang menginspirasi dan bermakna</textarea>
+                    <textarea id="heroSubtitle" name="heroSubtitle">Menciptakan karya visual yang menginspirasi dan bermakna</textarea>
                 </div>
                 
                 <div class="form-group">
                     <label for="whatsappNumber">Nomor WhatsApp:</label>
-                    <input type="text" id="whatsappNumber" value="6281234567890">
+                    <input type="text" id="whatsappNumber" name="whatsappNumber" value="6281234567890">
                 </div>
                 
                 <div class="form-group">
                     <label for="aboutText">Tentang Saya:</label>
-                    <textarea id="aboutText" rows="5">Saya adalah seorang ilustrator dan desainer grafis dengan passion untuk menciptakan karya visual yang bermakna...</textarea>
+                    <textarea id="aboutText" name="aboutText" rows="5">Saya adalah seorang ilustrator dan desainer grafis dengan passion untuk menciptakan karya visual yang bermakna...</textarea>
                 </div>
                 
-                <button id="saveSettingsBtn" class="btn-primary">
+                <div class="form-section">
+                    <h4>Pengaturan Tampilan</h4>
+                    
+                    <div class="form-group">
+                        <label for="gridLayout">Tata Letak Grid:</label>
+                        <select id="gridLayout" name="gridLayout">
+                            <option value="masonry">Masonry (Responsif)</option>
+                            <option value="grid">Grid Seragam</option>
+                            <option value="list">List</option>
+                        </select>
+                        <small class="form-help">Masonry memberikan tampilan yang lebih dinamis dan responsif.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="itemsPerPage">Item per Halaman:</label>
+                        <select id="itemsPerPage" name="itemsPerPage">
+                            <option value="6">6 Item</option>
+                            <option value="9">9 Item</option>
+                            <option value="12">12 Item</option>
+                            <option value="15">15 Item</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="showCategories" name="showCategories" checked>
+                            <span class="checkmark"></span>
+                            Tampilkan Filter Kategori
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enableAnimations" name="enableAnimations" checked>
+                            <span class="checkmark"></span>
+                            Aktifkan Animasi
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" id="saveSettingsBtn" class="btn-primary">
                     <i class="fas fa-save"></i> Simpan Pengaturan
                 </button>
-            </div>
+            </form>
         </section>
     </div>
 
@@ -151,20 +191,20 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="portfolioModalTitle">Tambah Karya Portfolio</h3>
-                <button class="close-btn" onclick="closeModal('portfolioModal')">
+                <button class="close-btn" id="closePortfolioModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <form id="portfolioForm">
+            <form id="portfolioForm" data-type="portfolio">
                 <div class="form-group">
                     <label for="portfolioTitle">Judul Karya:</label>
-                    <input type="text" id="portfolioTitle" required>
+                    <input type="text" id="portfolioTitle" name="title" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="portfolioDescription">Deskripsi:</label>
-                    <textarea id="portfolioDescription" rows="3"></textarea>
+                    <textarea id="portfolioDescription" name="description" rows="3"></textarea>
                 </div>
 
                 <!-- Main Image Section -->
@@ -191,7 +231,7 @@
                             <button type="button" onclick="document.getElementById('additionalImage1').click()" class="btn-secondary">Upload</button>
                             <div class="additional-preview" id="additionalPreview1" style="display: none;">
                                 <img src="" alt="Additional Image 1">
-                                <button type="button" onclick="removeAdditionalImage(1)" class="btn-danger">Hapus</button>
+                                <button type="button" class="btn-danger remove-additional-image" data-index="1">Hapus</button>
                             </div>
                         </div>
                         <div class="additional-image-item">
@@ -200,7 +240,7 @@
                             <button type="button" onclick="document.getElementById('additionalImage2').click()" class="btn-secondary">Upload</button>
                             <div class="additional-preview" id="additionalPreview2" style="display: none;">
                                 <img src="" alt="Additional Image 2">
-                                <button type="button" onclick="removeAdditionalImage(2)" class="btn-danger">Hapus</button>
+                                <button type="button" class="btn-danger remove-additional-image" data-index="2">Hapus</button>
                             </div>
                         </div>
                         <div class="additional-image-item">
@@ -209,7 +249,7 @@
                             <button type="button" onclick="document.getElementById('additionalImage3').click()" class="btn-secondary">Upload</button>
                             <div class="additional-preview" id="additionalPreview3" style="display: none;">
                                 <img src="" alt="Additional Image 3">
-                                <button type="button" onclick="removeAdditionalImage(3)" class="btn-danger">Hapus</button>
+                                <button type="button" class="btn-danger remove-additional-image" data-index="3">Hapus</button>
                             </div>
                         </div>
                     </div>
@@ -217,7 +257,7 @@
                 
                 <div class="form-group">
                     <label for="portfolioCategory">Kategori:</label>
-                    <select id="portfolioCategory">
+                    <select id="portfolioCategory" name="category">
                         <option value="illustration">Ilustrasi Digital</option>
                         <option value="character">Character Design</option>
                         <option value="editorial">Editorial</option>
@@ -227,7 +267,7 @@
                 </div>
                 
                 <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="closeModal('portfolioModal')">Batal</button>
+                    <button type="button" class="btn-secondary" id="cancelPortfolioModal">Batal</button>
                     <button type="submit" class="btn-primary">Simpan</button>
                 </div>
             </form>
@@ -239,25 +279,37 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="productModalTitle">Tambah Produk Digital</h3>
-                <button class="close-btn" onclick="closeModal('productModal')">
+                <button id="closeProductModal" class="close-btn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <form id="productForm">
+            <form id="productForm" data-type="product">
                 <div class="form-group">
                     <label for="productName">Nama Produk:</label>
-                    <input type="text" id="productName" required>
+                    <input type="text" id="productName" name="name" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="productDescription">Deskripsi:</label>
-                    <textarea id="productDescription" rows="3" required></textarea>
+                    <textarea id="productDescription" name="description" rows="3" required></textarea>
                 </div>
                 
                 <div class="form-group">
                     <label for="productPrice">Harga (Rp):</label>
-                    <input type="number" id="productPrice" required>
+                    <input type="number" id="productPrice" name="price" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productOriginalPrice">Harga Asli (Rp) - Opsional:</label>
+                    <input type="number" id="productOriginalPrice" name="originalPrice" placeholder="Kosongkan jika tidak ada diskon">
+                    <small class="form-help">Isi jika produk sedang diskon. Harga di atas akan menjadi harga setelah diskon.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productDiscount">Persentase Diskon (%):</label>
+                    <input type="number" id="productDiscount" name="discount" min="0" max="100" placeholder="0">
+                    <small class="form-help">Akan dihitung otomatis jika harga asli diisi, atau isi manual.</small>
                 </div>
                 
                 <div class="form-group">
@@ -289,8 +341,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="productType">Tipe Produk:</label>
-                    <select id="productType">
+                    <label for="productCategory">Kategori Produk:</label>
+                    <select id="productCategory" name="category">
                         <option value="brush">Custom Brush</option>
                         <option value="font">Font</option>
                         <option value="action">Action Photoshop</option>
@@ -301,15 +353,29 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="productType">Tipe Produk:</label>
+                    <select id="productType" name="type">
+                        <option value="digital">Digital</option>
+                        <option value="physical">Fisik</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productDownloadLink">Link Download (untuk produk digital):</label>
+                    <input type="url" id="productDownloadLink" name="downloadLink" placeholder="https://drive.google.com/...">
+                    <small class="form-help">Link Google Drive, Dropbox, atau platform lainnya untuk download produk.</small>
+                </div>
+                
+                <div class="form-group">
                     <label for="productStatus">Status:</label>
-                    <select id="productStatus">
+                    <select id="productStatus" name="status">
                         <option value="active">Aktif</option>
                         <option value="inactive">Tidak Aktif</option>
                     </select>
                 </div>
                 
                 <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="closeModal('productModal')">Batal</button>
+                    <button type="button" class="btn-secondary" id="cancelProductModal">Batal</button>
                     <button type="submit" class="btn-primary">Simpan</button>
                 </div>
             </form>
@@ -351,8 +417,8 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-primary" onclick="applyCrop()">Terapkan</button>
-                <button type="button" class="btn-secondary" onclick="closeCropperModal()">Batal</button>
+                <button type="button" class="btn-primary cropper-save">Terapkan</button>
+                <button type="button" class="btn-secondary cropper-cancel">Batal</button>
             </div>
         </div>
     </div>

@@ -236,8 +236,18 @@
                     <label>Gambar Utama:</label>
                     <div class="image-upload-container">
                         <input type="file" id="portfolioImageFile" accept="image/*" style="display: none;">
-                        <input type="text" id="portfolioImage" placeholder="URL gambar atau pilih file" readonly>
-                        <button type="button" onclick="document.getElementById('portfolioImageFile').click()" class="btn-secondary">Upload Gambar</button>
+                        <input type="text" id="portfolioImage" placeholder="Masukkan URL gambar atau upload file">
+                        <div class="image-url-controls">
+                            <button type="button" onclick="document.getElementById('portfolioImageFile').click()" class="btn-secondary">
+                                <i class="fas fa-upload"></i> Upload File
+                            </button>
+                            <button type="button" onclick="previewPortfolioImageUrl()" class="btn-primary">
+                                <i class="fas fa-eye"></i> Preview URL
+                            </button>
+                            <button type="button" onclick="clearPortfolioImage()" class="btn-danger">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
                     </div>
                     <div id="portfolioImagePreview" class="image-preview" style="display: none;">
                         <img id="portfolioPreviewImg" src="" alt="Preview">
@@ -361,10 +371,18 @@
                     <label for="productImage">Gambar Produk:</label>
                     <div class="image-upload-container">
                         <input type="file" id="productImageFile" accept="image/*" style="display: none;">
-                        <input type="text" id="productImage" placeholder="URL gambar atau upload file" readonly>
-                        <button type="button" class="btn-secondary" onclick="document.getElementById('productImageFile').click()">
-                            <i class="fas fa-upload"></i> Upload
-                        </button>
+                        <input type="text" id="productImage" placeholder="Masukkan URL gambar atau upload file">
+                        <div class="image-url-controls">
+                            <button type="button" class="btn-secondary" onclick="document.getElementById('productImageFile').click()">
+                                <i class="fas fa-upload"></i> Upload File
+                            </button>
+                            <button type="button" onclick="previewProductImageUrl()" class="btn-primary">
+                                <i class="fas fa-eye"></i> Preview URL
+                            </button>
+                            <button type="button" onclick="clearProductImage()" class="btn-danger">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
                     </div>
                     <div class="image-guidelines">
                         <p><strong>🛍️ Panduan Gambar Produk:</strong></p>

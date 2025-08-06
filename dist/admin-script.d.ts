@@ -100,6 +100,12 @@ declare class AdminApp {
     private getDefaultProducts;
     private getDefaultSettings;
     private getDefaultThumbnailSizes;
+    previewPortfolioImageUrl(): void;
+    previewProductImageUrl(): void;
+    clearPortfolioImage(): void;
+    clearProductImage(): void;
+    private validateAndPreviewImage;
+    private showUrlImagePreview;
 }
 declare const adminApp: AdminApp;
 export default adminApp;

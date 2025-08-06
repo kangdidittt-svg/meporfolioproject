@@ -115,9 +115,57 @@ body {
 /* Image Upload Styles */
 .image-upload-container {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.image-url-controls {
+    display: flex;
     gap: 10px;
     align-items: center;
-    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.image-url-controls .btn-secondary,
+.image-url-controls .btn-primary,
+.image-url-controls .btn-danger {
+    padding: 8px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s ease;
+}
+
+.image-url-controls .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.image-url-controls .btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.image-url-controls .btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.image-url-controls .btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.image-url-controls .btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.image-url-controls .btn-danger:hover {
+    background-color: #c82333;
 }
 
 .image-upload-container input[type="text"] {

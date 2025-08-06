@@ -2176,6 +2176,114 @@ class AdminApp {
       { name: 'large', width: 600, height: 400 }
     ];
   }
+
+  /**
+   * Preview portfolio image from URL
+   */
+  public previewPortfolioImageUrl(): void {
+    const input = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
+    const url = input?.value.trim();
+    
+    if (!url) {
+      this.showMessage('Masukkan URL gambar terlebih dahulu!', 'warning');
+      return;
+    }
+    
+    this.validateAndPreviewImage(url, 'portfolio');
+  }
+
+  /**
+   * Preview product image from URL
+   */
+  public previewProductImageUrl(): void {
+    const input = DOMUtils.getElementById<HTMLInputElement>('productImage');
+    const url = input?.value.trim();
+    
+    if (!url) {
+      this.showMessage('Masukkan URL gambar terlebih dahulu!', 'warning');
+      return;
+    }
+    
+    this.validateAndPreviewImage(url, 'product');
+  }
+
+  /**
+   * Clear portfolio image
+   */
+  public clearPortfolioImage(): void {
+    const input = DOMUtils.getElementById<HTMLInputElement>('portfolioImage');
+    const preview = DOMUtils.getElementById('portfolioImagePreview');
+    
+    if (input) input.value = '';
+    if (preview) preview.style.display = 'none';
+    
+    this.showMessage('Gambar portfolio dibersihkan!', 'success');
+  }
+
+  /**
+   * Clear product image
+   */
+  public clearProductImage(): void {
+    const input = DOMUtils.getElementById<HTMLInputElement>('productImage');
+    const preview = DOMUtils.getElementById('productImagePreview');
+    
+    if (input) input.value = '';
+    if (preview) preview.style.display = 'none';
+    
+    this.showMessage('Gambar produk dibersihkan!', 'success');
+  }
+
+  /**
+   * Validate and preview image from URL
+   */
+  private validateAndPreviewImage(url: string, type: 'portfolio' | 'product'): void {
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      this.showMessage('URL tidak valid!', 'error');
+      return;
+    }
+
+    // Check if URL looks like an image
+    const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+    if (!imageExtensions.test(url)) {
+      this.showMessage('URL harus mengarah ke file gambar (jpg, png, gif, webp, svg)!', 'warning');
+    }
+
+    // Create image element to test loading
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      this.showUrlImagePreview(url, type);
+      this.showMessage('Preview gambar berhasil dimuat!', 'success');
+    };
+    
+    img.onerror = () => {
+      this.showMessage('Gagal memuat gambar dari URL. Pastikan URL valid dan dapat diakses!', 'error');
+    };
+    
+    // Show loading message
+    this.showMessage('Memuat preview gambar...', 'info');
+    img.src = url;
+  }
+
+  /**
+   * Show image preview for URL
+   */
+  private showUrlImagePreview(url: string, type: 'portfolio' | 'product'): void {
+    const previewId = type === 'portfolio' ? 'portfolioImagePreview' : 'productImagePreview';
+    const imgId = type === 'portfolio' ? 'portfolioPreviewImg' : 'productPreviewImg';
+    
+    const preview = DOMUtils.getElementById(previewId);
+    const img = DOMUtils.getElementById<HTMLImageElement>(imgId);
+    
+    if (preview && img) {
+      img.src = url;
+      preview.style.display = 'block';
+    }
+  }
 }
 
 // Initialize the admin application when DOM is ready
@@ -2186,6 +2294,12 @@ if (document.readyState === 'loading') {
 } else {
   adminApp.init();
 }
+
+// Global functions for HTML onclick handlers
+(window as any).previewPortfolioImageUrl = () => adminApp.previewPortfolioImageUrl();
+(window as any).previewProductImageUrl = () => adminApp.previewProductImageUrl();
+(window as any).clearPortfolioImage = () => adminApp.clearPortfolioImage();
+(window as any).clearProductImage = () => adminApp.clearProductImage();
 
 // Export for potential external use
 export default adminApp;

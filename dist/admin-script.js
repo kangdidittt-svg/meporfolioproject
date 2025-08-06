@@ -1501,6 +1501,76 @@ class AdminApp {
             { name: 'large', width: 600, height: 400 }
         ];
     }
+    previewPortfolioImageUrl() {
+        const input = DOMUtils.getElementById('portfolioImage');
+        const url = input?.value.trim();
+        if (!url) {
+            this.showMessage('Masukkan URL gambar terlebih dahulu!', 'warning');
+            return;
+        }
+        this.validateAndPreviewImage(url, 'portfolio');
+    }
+    previewProductImageUrl() {
+        const input = DOMUtils.getElementById('productImage');
+        const url = input?.value.trim();
+        if (!url) {
+            this.showMessage('Masukkan URL gambar terlebih dahulu!', 'warning');
+            return;
+        }
+        this.validateAndPreviewImage(url, 'product');
+    }
+    clearPortfolioImage() {
+        const input = DOMUtils.getElementById('portfolioImage');
+        const preview = DOMUtils.getElementById('portfolioImagePreview');
+        if (input)
+            input.value = '';
+        if (preview)
+            preview.style.display = 'none';
+        this.showMessage('Gambar portfolio dibersihkan!', 'success');
+    }
+    clearProductImage() {
+        const input = DOMUtils.getElementById('productImage');
+        const preview = DOMUtils.getElementById('productImagePreview');
+        if (input)
+            input.value = '';
+        if (preview)
+            preview.style.display = 'none';
+        this.showMessage('Gambar produk dibersihkan!', 'success');
+    }
+    validateAndPreviewImage(url, type) {
+        try {
+            new URL(url);
+        }
+        catch {
+            this.showMessage('URL tidak valid!', 'error');
+            return;
+        }
+        const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+        if (!imageExtensions.test(url)) {
+            this.showMessage('URL harus mengarah ke file gambar (jpg, png, gif, webp, svg)!', 'warning');
+        }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            this.showUrlImagePreview(url, type);
+            this.showMessage('Preview gambar berhasil dimuat!', 'success');
+        };
+        img.onerror = () => {
+            this.showMessage('Gagal memuat gambar dari URL. Pastikan URL valid dan dapat diakses!', 'error');
+        };
+        this.showMessage('Memuat preview gambar...', 'info');
+        img.src = url;
+    }
+    showUrlImagePreview(url, type) {
+        const previewId = type === 'portfolio' ? 'portfolioImagePreview' : 'productImagePreview';
+        const imgId = type === 'portfolio' ? 'portfolioPreviewImg' : 'productPreviewImg';
+        const preview = DOMUtils.getElementById(previewId);
+        const img = DOMUtils.getElementById(imgId);
+        if (preview && img) {
+            img.src = url;
+            preview.style.display = 'block';
+        }
+    }
 }
 const adminApp = new AdminApp();
 if (document.readyState === 'loading') {
@@ -1509,6 +1579,10 @@ if (document.readyState === 'loading') {
 else {
     adminApp.init();
 }
+window.previewPortfolioImageUrl = () => adminApp.previewPortfolioImageUrl();
+window.previewProductImageUrl = () => adminApp.previewProductImageUrl();
+window.clearPortfolioImage = () => adminApp.clearPortfolioImage();
+window.clearProductImage = () => adminApp.clearProductImage();
 export default adminApp;
 export { AdminApp };
 //# sourceMappingURL=admin-script.js.map

@@ -23,6 +23,7 @@ class AdminApp {
         this.handleCropperSave = this.handleCropperSave.bind(this);
         this.handleDeleteItem = this.handleDeleteItem.bind(this);
         this.handleEditItem = this.handleEditItem.bind(this);
+        this.handlePreviewItem = this.handlePreviewItem.bind(this);
         this.handleLogin = this.handleLogin.bind(this);
         this.handleLogout = this.handleLogout.bind(this);
         this.showProductModal = this.showProductModal.bind(this);
@@ -42,6 +43,7 @@ class AdminApp {
             await this.renderContent();
             this.setupFormValidation();
             this.setupImageHandlers();
+            this.restorePageState();
             this.isInitialized = true;
             PerformanceUtils.measure('Admin Initialization', 'admin-init-start');
             console.log('🔧 Admin panel initialized with TypeScript!');
@@ -109,6 +111,12 @@ class AdminApp {
     setupEventDelegation() {
         document.addEventListener('click', (event) => {
             const target = event.target;
+            if (target.classList.contains('preview-btn') || target.closest('.preview-btn')) {
+                const button = target.classList.contains('preview-btn') ? target : target.closest('.preview-btn');
+                if (button) {
+                    this.handlePreviewItem(event, button);
+                }
+            }
             if (target.classList.contains('edit-btn') || target.closest('.edit-btn')) {
                 const button = target.classList.contains('edit-btn') ? target : target.closest('.edit-btn');
                 if (button) {
@@ -318,6 +326,9 @@ class AdminApp {
           </span>
         </div>
         <div class="item-actions">
+          <button class="btn btn-small btn-secondary preview-btn" data-id="${item.id}" data-type="portfolio">
+            <i class="fas fa-eye"></i> Preview
+          </button>
           <button class="btn btn-small btn-primary edit-btn" data-id="${item.id}" data-type="portfolio">
             <i class="fas fa-edit"></i> Edit
           </button>
@@ -483,6 +494,7 @@ class AdminApp {
         if (targetContent) {
             DOMUtils.addClass(targetContent, 'active');
         }
+        this.savePageState(targetTab);
         this.loadTabData(targetTab);
     }
     async handleFormSubmit(event) {
@@ -743,6 +755,120 @@ class AdminApp {
             this.showMessage('Failed to load item for editing', 'error');
         }
     }
+    handlePreviewItem(event, element) {
+        const id = parseInt(element.dataset.id || '0');
+        const type = element.dataset.type;
+        if (!id || !type)
+            return;
+        if (type === 'portfolio') {
+            const item = this.portfolioData.find(p => p.id === id);
+            if (item) {
+                this.showImagePreview(item.image, item.title, item.additionalImages);
+            }
+        }
+        else {
+            const item = this.productsData.find(p => p.id === id);
+            if (item) {
+                this.showImagePreview(item.image, item.name);
+            }
+        }
+    }
+    showImagePreview(imageUrl, title, additionalImages) {
+        let modal = DOMUtils.getElementById('imagePreviewModal');
+        if (!modal) {
+            modal = this.createImagePreviewModal();
+            document.body.appendChild(modal);
+        }
+        const modalImage = modal.querySelector('.preview-image');
+        const modalTitle = modal.querySelector('.preview-title');
+        const additionalContainer = modal.querySelector('.additional-images');
+        if (modalImage)
+            modalImage.src = imageUrl;
+        if (modalTitle)
+            modalTitle.textContent = title;
+        if (additionalContainer) {
+            additionalContainer.innerHTML = '';
+            if (additionalImages && additionalImages.length > 0) {
+                additionalImages.forEach((imgUrl, index) => {
+                    const img = DOMUtils.createElement('img', 'additional-preview');
+                    img.src = imgUrl;
+                    img.alt = `${title} - Image ${index + 2}`;
+                    img.addEventListener('click', () => {
+                        if (modalImage)
+                            modalImage.src = imgUrl;
+                    });
+                    additionalContainer.appendChild(img);
+                });
+            }
+        }
+        modal.style.display = 'flex';
+    }
+    createImagePreviewModal() {
+        const modal = DOMUtils.createElement('div', 'modal');
+        modal.id = 'imagePreviewModal';
+        modal.innerHTML = `
+      <div class="modal-overlay"></div>
+      <div class="modal-content image-preview-content">
+        <div class="modal-header">
+          <h3 class="preview-title">Image Preview</h3>
+          <button class="modal-close" type="button">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="main-preview">
+            <img class="preview-image" src="" alt="Preview" />
+          </div>
+          <div class="additional-images"></div>
+        </div>
+      </div>
+    `;
+        const closeBtn = modal.querySelector('.modal-close');
+        const overlay = modal.querySelector('.modal-overlay');
+        closeBtn?.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        overlay?.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        return modal;
+    }
+    savePageState(currentTab) {
+        const pageState = {
+            currentTab,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('adminPageState', JSON.stringify(pageState));
+    }
+    restorePageState() {
+        try {
+            const savedState = localStorage.getItem('adminPageState');
+            if (!savedState)
+                return;
+            const pageState = JSON.parse(savedState);
+            const { currentTab, timestamp } = pageState;
+            const oneHour = 60 * 60 * 1000;
+            if (Date.now() - timestamp > oneHour) {
+                localStorage.removeItem('adminPageState');
+                return;
+            }
+            const tabButton = DOMUtils.querySelector(`[data-tab="${currentTab}"]`);
+            if (tabButton) {
+                this.elements.tabButtons?.forEach(btn => DOMUtils.removeClass(btn, 'active'));
+                DOMUtils.addClass(tabButton, 'active');
+                this.elements.tabContents?.forEach(content => DOMUtils.removeClass(content, 'active'));
+                const targetContent = DOMUtils.getElementById(`${currentTab}Tab`);
+                if (targetContent) {
+                    DOMUtils.addClass(targetContent, 'active');
+                }
+                this.loadTabData(currentTab);
+            }
+        }
+        catch (error) {
+            console.error('Failed to restore page state:', error);
+            localStorage.removeItem('adminPageState');
+        }
+    }
     handleKeyboardShortcuts(event) {
         if (event.ctrlKey && event.key === 's') {
             event.preventDefault();
@@ -751,6 +877,10 @@ class AdminApp {
         }
         if (event.key === 'Escape') {
             this.closeCropperModal();
+            const previewModal = DOMUtils.getElementById('imagePreviewModal');
+            if (previewModal) {
+                previewModal.style.display = 'none';
+            }
         }
     }
     showCropperModal(imageUrl) {
@@ -932,11 +1062,14 @@ class AdminApp {
                     preview.style.display = 'none';
             }
         }
-        this.switchToTab('portfolio');
-        const form = DOMUtils.querySelector('form[data-type="portfolio"]');
-        if (form) {
-            form.scrollIntoView({ behavior: 'smooth' });
+        const modal = DOMUtils.getElementById('portfolioModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const title = modal.querySelector('#portfolioModalTitle');
+            if (title)
+                title.textContent = 'Edit Karya Portfolio';
         }
+        this.switchToTab('portfolio');
     }
     async editProductItem(id) {
         const item = this.productsData.find(p => p.id === id);

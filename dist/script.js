@@ -121,12 +121,14 @@ class PortfolioApp {
     createPortfolioCard(item) {
         const card = DOMUtils.createElement('div', 'portfolio-item');
         card.style.setProperty('--portfolio-aspect-ratio', '3/4');
+        const imageUrl = item.thumbnail || item.image || ImageUtils.createPlaceholder(400, 300, item.title);
         card.innerHTML = `
       <div class="portfolio-image">
-        <img src="${item.thumbnail || item.image}" 
+        <img src="${imageUrl}" 
              alt="${item.title}" 
              loading="lazy"
-             data-full-src="${item.image}">
+             data-full-src="${item.image || ImageUtils.createPlaceholder(400, 300, item.title)}"
+             onerror="this.src='${ImageUtils.createPlaceholder(400, 300, item.title).replace(/'/g, "&apos;")}'">
         <div class="portfolio-overlay">
           <button class="preview-btn" title="Pratinjau Gambar">
             <i class="fas fa-eye"></i>
@@ -570,6 +572,76 @@ class PortfolioApp {
                 category: "branding",
                 description: "Set icon untuk aplikasi mobile dengan konsistensi visual dan kemudahan penggunaan.",
                 image: ImageUtils.createPlaceholder(400, 300, "Icons")
+            },
+            {
+                id: 9,
+                title: "Web Design Mockup",
+                category: "branding",
+                description: "Mockup desain website modern dengan pendekatan user-centered design dan interface yang intuitif.",
+                image: ImageUtils.createPlaceholder(400, 300, "Web Design")
+            },
+            {
+                id: 10,
+                title: "Typography Exploration",
+                category: "editorial",
+                description: "Eksplorasi tipografi untuk berbagai media dengan fokus pada readability dan visual hierarchy.",
+                image: ImageUtils.createPlaceholder(400, 300, "Typography")
+            },
+            {
+                id: 11,
+                title: "Mobile App UI",
+                category: "branding",
+                description: "Desain antarmuka aplikasi mobile dengan pendekatan minimalis dan user experience yang optimal.",
+                image: ImageUtils.createPlaceholder(400, 300, "Mobile UI")
+            },
+            {
+                id: 12,
+                title: "Packaging Design",
+                category: "branding",
+                description: "Desain kemasan produk dengan konsep sustainable dan eye-catching untuk meningkatkan brand awareness.",
+                image: ImageUtils.createPlaceholder(400, 300, "Packaging")
+            },
+            {
+                id: 13,
+                title: "Social Media Campaign",
+                category: "ilustrasi",
+                description: "Kampanye visual untuk media sosial dengan konsep storytelling yang engaging dan brand consistency.",
+                image: "https://picsum.photos/400/300?random=13"
+            },
+            {
+                id: 14,
+                title: "Print Advertisement",
+                category: "editorial",
+                description: "Desain iklan cetak untuk majalah dengan layout yang menarik dan pesan yang kuat.",
+                image: "https://picsum.photos/400/300?random=14"
+            },
+            {
+                id: 15,
+                title: "Brand Identity System",
+                category: "branding",
+                description: "Sistem identitas brand lengkap dengan guidelines dan aplikasi pada berbagai media.",
+                image: "https://picsum.photos/400/300?random=15"
+            },
+            {
+                id: 16,
+                title: "E-commerce Design",
+                category: "branding",
+                description: "Desain interface e-commerce dengan fokus pada user experience dan conversion optimization.",
+                image: "https://picsum.photos/400/300?random=16"
+            },
+            {
+                id: 17,
+                title: "Motion Graphics",
+                category: "ilustrasi",
+                description: "Animasi motion graphics untuk video promosi dengan storytelling yang dinamis dan engaging.",
+                image: "https://picsum.photos/400/300?random=17"
+            },
+            {
+                id: 18,
+                title: "Corporate Brochure",
+                category: "editorial",
+                description: "Desain brosur korporat dengan layout profesional dan informasi yang terstruktur dengan baik.",
+                image: "https://picsum.photos/400/300?random=18"
             }
         ];
     }

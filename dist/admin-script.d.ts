@@ -48,6 +48,11 @@ declare class AdminApp {
     private handleCropperSave;
     private handleDeleteItem;
     private handleEditItem;
+    private handlePreviewItem;
+    private showImagePreview;
+    private createImagePreviewModal;
+    private savePageState;
+    private restorePageState;
     private handleKeyboardShortcuts;
     private showCropperModal;
     private closeCropperModal;

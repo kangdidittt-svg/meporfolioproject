@@ -137,6 +137,48 @@ body {
     margin-right: auto;
 }
 
+/* Image Guidelines Styles */
+.image-guidelines {
+    margin-top: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.image-guidelines p {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-weight: 500;
+}
+
+.image-guidelines ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: none;
+}
+
+.image-guidelines li {
+    margin-bottom: 6px;
+    color: #6c757d;
+    position: relative;
+    padding-left: 15px;
+}
+
+.image-guidelines li:before {
+    content: "•";
+    color: #007bff;
+    font-weight: bold;
+    position: absolute;
+    left: 0;
+}
+
+.image-guidelines strong {
+    color: #495057;
+    font-weight: 600;
+}
+
 /* Cropper Modal Styles */
 .cropper-container {
     margin: 20px 0;
@@ -838,4 +880,95 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* Image Preview Modal Styles */
+.image-preview-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    padding: 1rem;
+}
+
+.image-preview-content .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.image-preview-content .preview-title {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+.image-preview-content .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.image-preview-content .modal-close:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.main-preview {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.preview-image {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.additional-images {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.additional-preview {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.additional-preview:hover {
+    border-color: #007bff;
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    .image-preview-content {
+        width: 95vw;
+        padding: 0.5rem;
+    }
+    
+    .preview-image {
+        max-height: 60vh;
+    }
+    
+    .additional-preview {
+        width: 60px;
+        height: 45px;
+    }
 }

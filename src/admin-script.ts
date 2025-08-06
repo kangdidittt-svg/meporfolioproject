@@ -77,6 +77,7 @@ class AdminApp {
     this.handleCropperSave = this.handleCropperSave.bind(this);
     this.handleDeleteItem = this.handleDeleteItem.bind(this);
     this.handleEditItem = this.handleEditItem.bind(this);
+    this.handlePreviewItem = this.handlePreviewItem.bind(this);
     this.handleLogin = this.handleLogin.bind(this);
     this.handleLogout = this.handleLogout.bind(this);
     this.showProductModal = this.showProductModal.bind(this);
@@ -101,6 +102,7 @@ class AdminApp {
       await this.renderContent();
       this.setupFormValidation();
       this.setupImageHandlers();
+      this.restorePageState();
       
       this.isInitialized = true;
       PerformanceUtils.measure('Admin Initialization', 'admin-init-start');
@@ -219,9 +221,17 @@ class AdminApp {
    * Setup event delegation for dynamically created buttons
    */
   private setupEventDelegation(): void {
-    // Event delegation for edit and delete buttons
+    // Event delegation for edit, delete, and preview buttons
     document.addEventListener('click', (event: Event) => {
       const target = event.target as HTMLElement;
+      
+      // Handle preview buttons
+      if (target.classList.contains('preview-btn') || target.closest('.preview-btn')) {
+        const button = target.classList.contains('preview-btn') ? target : target.closest('.preview-btn') as HTMLElement;
+        if (button) {
+          this.handlePreviewItem(event, button);
+        }
+      }
       
       // Handle edit buttons
       if (target.classList.contains('edit-btn') || target.closest('.edit-btn')) {
@@ -515,6 +525,9 @@ class AdminApp {
           </span>
         </div>
         <div class="item-actions">
+          <button class="btn btn-small btn-secondary preview-btn" data-id="${item.id}" data-type="portfolio">
+            <i class="fas fa-eye"></i> Preview
+          </button>
           <button class="btn btn-small btn-primary edit-btn" data-id="${item.id}" data-type="portfolio">
             <i class="fas fa-edit"></i> Edit
           </button>
@@ -753,6 +766,9 @@ class AdminApp {
     if (targetContent) {
       DOMUtils.addClass(targetContent, 'active');
     }
+
+    // Save current tab state
+    this.savePageState(targetTab);
 
     // Load tab-specific data
     this.loadTabData(targetTab);
@@ -1096,6 +1112,159 @@ class AdminApp {
   }
 
   /**
+   * Handle preview item
+   */
+  private handlePreviewItem(event: Event, element: HTMLElement): void {
+    const id = parseInt(element.dataset.id || '0');
+    const type = element.dataset.type as 'portfolio' | 'product';
+    
+    if (!id || !type) return;
+
+    if (type === 'portfolio') {
+      const item = this.portfolioData.find(p => p.id === id);
+      if (item) {
+        this.showImagePreview(item.image, item.title, item.additionalImages);
+      }
+    } else {
+      const item = this.productsData.find(p => p.id === id);
+      if (item) {
+        this.showImagePreview(item.image, item.name);
+      }
+    }
+  }
+
+  /**
+   * Show image preview modal
+   */
+  private showImagePreview(imageUrl: string, title: string, additionalImages?: string[]): void {
+    // Create modal if it doesn't exist
+    let modal = DOMUtils.getElementById<HTMLElement>('imagePreviewModal');
+    if (!modal) {
+      modal = this.createImagePreviewModal();
+      document.body.appendChild(modal);
+    }
+
+    // Update modal content
+    const modalImage = modal.querySelector('.preview-image') as HTMLImageElement;
+    const modalTitle = modal.querySelector('.preview-title') as HTMLElement;
+    const additionalContainer = modal.querySelector('.additional-images') as HTMLElement;
+
+    if (modalImage) modalImage.src = imageUrl;
+    if (modalTitle) modalTitle.textContent = title;
+
+    // Show additional images if available
+    if (additionalContainer) {
+      additionalContainer.innerHTML = '';
+      if (additionalImages && additionalImages.length > 0) {
+        additionalImages.forEach((imgUrl, index) => {
+          const img = DOMUtils.createElement<HTMLImageElement>('img', 'additional-preview');
+          img.src = imgUrl;
+          img.alt = `${title} - Image ${index + 2}`;
+          img.addEventListener('click', () => {
+            if (modalImage) modalImage.src = imgUrl;
+          });
+          additionalContainer.appendChild(img);
+        });
+      }
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+  }
+
+  /**
+   * Create image preview modal
+   */
+  private createImagePreviewModal(): HTMLElement {
+    const modal = DOMUtils.createElement<HTMLDivElement>('div', 'modal');
+    modal.id = 'imagePreviewModal';
+    modal.innerHTML = `
+      <div class="modal-overlay"></div>
+      <div class="modal-content image-preview-content">
+        <div class="modal-header">
+          <h3 class="preview-title">Image Preview</h3>
+          <button class="modal-close" type="button">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="main-preview">
+            <img class="preview-image" src="" alt="Preview" />
+          </div>
+          <div class="additional-images"></div>
+        </div>
+      </div>
+    `;
+
+    // Add event listeners
+    const closeBtn = modal.querySelector('.modal-close');
+    const overlay = modal.querySelector('.modal-overlay');
+    
+    closeBtn?.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+    
+    overlay?.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    return modal;
+  }
+
+  /**
+   * Save current page state
+   */
+  private savePageState(currentTab: TabName): void {
+    const pageState = {
+      currentTab,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('adminPageState', JSON.stringify(pageState));
+  }
+
+  /**
+   * Restore page state after refresh
+   */
+  private restorePageState(): void {
+    try {
+      const savedState = localStorage.getItem('adminPageState');
+      if (!savedState) return;
+
+      const pageState = JSON.parse(savedState);
+      const { currentTab, timestamp } = pageState;
+
+      // Only restore if the state is recent (within 1 hour)
+      const oneHour = 60 * 60 * 1000;
+      if (Date.now() - timestamp > oneHour) {
+        localStorage.removeItem('adminPageState');
+        return;
+      }
+
+      // Find and activate the saved tab
+      const tabButton = DOMUtils.querySelector<HTMLElement>(`[data-tab="${currentTab}"]`);
+      if (tabButton) {
+        // Update active tab button
+        this.elements.tabButtons?.forEach(btn => DOMUtils.removeClass(btn, 'active'));
+        DOMUtils.addClass(tabButton, 'active');
+
+        // Update active tab content
+        this.elements.tabContents?.forEach(content => DOMUtils.removeClass(content, 'active'));
+        
+        const targetContent = DOMUtils.getElementById<HTMLElement>(`${currentTab}Tab`);
+        if (targetContent) {
+          DOMUtils.addClass(targetContent, 'active');
+        }
+
+        // Load tab-specific data
+        this.loadTabData(currentTab);
+      }
+    } catch (error) {
+      console.error('Failed to restore page state:', error);
+      localStorage.removeItem('adminPageState');
+    }
+  }
+
+  /**
    * Handle keyboard shortcuts
    */
   private handleKeyboardShortcuts(event: KeyboardEvent): void {
@@ -1109,6 +1278,11 @@ class AdminApp {
     // Escape to close modals
     if (event.key === 'Escape') {
       this.closeCropperModal();
+      // Close image preview modal
+      const previewModal = DOMUtils.getElementById<HTMLElement>('imagePreviewModal');
+      if (previewModal) {
+        previewModal.style.display = 'none';
+      }
     }
   }
 
@@ -1357,14 +1531,17 @@ class AdminApp {
       }
     }
 
+    // Show portfolio modal
+    const modal = DOMUtils.getElementById<HTMLElement>('portfolioModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Update modal title
+      const title = modal.querySelector('#portfolioModalTitle');
+      if (title) title.textContent = 'Edit Karya Portfolio';
+    }
+
     // Switch to portfolio tab
     this.switchToTab('portfolio');
-    
-    // Scroll to form
-    const form = DOMUtils.querySelector<HTMLElement>('form[data-type="portfolio"]');
-    if (form) {
-      form.scrollIntoView({ behavior: 'smooth' });
-    }
   }
 
   /**

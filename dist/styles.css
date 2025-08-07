@@ -266,18 +266,15 @@ main {
 }
 
 .btn-primary {
-    background: #b200c0 !important;
-    color: white !important;
-    border: none !important;
+    background: #b200c0;
+    color: white;
+    border: none;
     padding: 0.8rem 1.5rem;
     border-radius: 8px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.3s ease;
     width: 100%;
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
 }
 
 .btn-primary:hover {
@@ -1048,28 +1045,22 @@ html {
 }
 
 .modal-actions {
-    display: flex !important;
+    display: flex;
     gap: 1rem;
     padding: 1.5rem;
     border-top: 1px solid #eee;
     justify-content: flex-end;
-    background: #fff;
-    position: relative;
-    z-index: 10001;
 }
 
 .btn-secondary {
-    background: #6c757d !important;
-    color: white !important;
-    border: none !important;
+    background: #6c757d;
+    color: white;
+    border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 6px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.3s ease;
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
 }
 
 .btn-secondary:hover {

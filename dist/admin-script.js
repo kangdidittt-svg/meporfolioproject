@@ -1,5 +1,5 @@
 import { StorageKeys } from './types.js';
-import { debounce, SafeStorage, DOMUtils, AnimationUtils, ImageUtils, ValidationUtils, PerformanceUtils, FormatUtils } from './utils.js';
+import { debounce, SafeStorage, DOMUtils, AnimationUtils, ImageUtils, ValidationUtils, PerformanceUtils, FormatUtils, ErrorUtils } from './utils.js';
 class AdminApp {
     constructor() {
         this.portfolioData = [];
@@ -73,6 +73,9 @@ class AdminApp {
         this.productsData = SafeStorage.get(StorageKeys.PRODUCTS_DATA, this.getDefaultProducts());
         this.siteSettings = SafeStorage.get(StorageKeys.SITE_SETTINGS, this.getDefaultSettings());
         this.currentUser = SafeStorage.get(StorageKeys.USER_DATA, null);
+        const orders = this.getOrders();
+        const pendingOrders = orders.filter(order => order.status === 'pending').length;
+        this.updateOrderNotificationBadge(pendingOrders);
         if (!SafeStorage.get(StorageKeys.PORTFOLIO_DATA, null)) {
             SafeStorage.set(StorageKeys.PORTFOLIO_DATA, this.portfolioData);
         }
@@ -379,26 +382,35 @@ class AdminApp {
     createProductAdminCard(product) {
         const card = DOMUtils.createElement('div', 'product-item');
         let priceDisplay = FormatUtils.formatPrice(product.price);
-        if (product.originalPrice && product.discount && product.discount > 0) {
+        if (product.promoPrice && product.isOnPromo) {
             priceDisplay = `
         <div class="price-container">
-          <span class="original-price">${FormatUtils.formatPrice(product.originalPrice)}</span>
-          <span class="current-price">${FormatUtils.formatPrice(product.price)}</span>
-          <span class="discount-badge">-${product.discount}%</span>
+          <span class="original-price">${FormatUtils.formatPrice(product.price)}</span>
+          <span class="current-price">${FormatUtils.formatPrice(product.promoPrice)}</span>
         </div>
       `;
         }
+        const labels = [];
+        if (product.isNew)
+            labels.push('<span class="product-label label-new">NEW</span>');
+        if (product.isBestSeller)
+            labels.push('<span class="product-label label-bestseller">TERLARIS</span>');
+        if (product.isOnPromo)
+            labels.push('<span class="product-label label-promo">PROMO</span>');
+        const labelsDisplay = labels.length > 0 ? `<div class="product-labels">${labels.join('')}</div>` : '';
         const categoryDisplay = product.category ? `<span class="item-category">${this.getCategoryDisplayName(product.category)}</span>` : '';
         const typeDisplay = product.type ? `<span class="item-type ${product.type}">${product.type.toUpperCase()}</span>` : '';
+        const soldDisplay = product.soldCount ? `<span class="sold-count"><i class="fas fa-shopping-cart"></i> ${product.soldCount} terjual</span>` : '';
         card.innerHTML = `
       <div class="item-image">
         <img src="${product.image}" alt="${product.name}" loading="lazy">
-        ${product.discount && product.discount > 0 ? `<div class="discount-overlay">-${product.discount}%</div>` : ''}
+        ${labelsDisplay}
       </div>
       <div class="item-content">
         <h4 class="item-title">${product.name}</h4>
         <p class="item-description">${product.description}</p>
         <div class="item-price">${priceDisplay}</div>
+        ${soldDisplay ? `<div class="item-sold">${soldDisplay}</div>` : ''}
         <div class="item-meta">
           ${categoryDisplay}
           ${typeDisplay}
@@ -1251,6 +1263,9 @@ class AdminApp {
             case 'products':
                 await this.renderProductItems();
                 break;
+            case 'orders':
+                await this.renderOrderItems();
+                break;
             case 'settings':
                 await this.loadSettings();
                 break;
@@ -1592,11 +1607,66 @@ class AdminApp {
         return [
             {
                 id: 1,
-                name: "Sample Product",
+                name: "Brush Pack Premium",
+                price: 150000,
+                promoPrice: 120000,
+                description: "Koleksi 50+ brush digital untuk ilustrasi",
+                image: ImageUtils.createPlaceholder(300, 200, "Brush Pack"),
+                status: "active",
+                soldCount: 89,
+                isNew: false,
+                isBestSeller: true,
+                isOnPromo: true
+            },
+            {
+                id: 2,
+                name: "Font Collection",
+                price: 200000,
+                description: "10 font unik untuk branding dan desain",
+                image: ImageUtils.createPlaceholder(300, 200, "Font Pack"),
+                status: "active",
+                soldCount: 56,
+                isNew: true,
+                isBestSeller: false,
+                isOnPromo: false
+            },
+            {
+                id: 3,
+                name: "Photoshop Actions",
                 price: 100000,
-                description: "Sample digital product",
-                image: ImageUtils.createPlaceholder(300, 200, "Product"),
-                status: "active"
+                promoPrice: 75000,
+                description: "25 action untuk efek foto profesional",
+                image: ImageUtils.createPlaceholder(300, 200, "PS Actions"),
+                status: "active",
+                soldCount: 134,
+                isNew: false,
+                isBestSeller: true,
+                isOnPromo: true
+            },
+            {
+                id: 4,
+                name: "Texture Pack",
+                price: 120000,
+                description: "Koleksi tekstur high-res untuk desain",
+                image: ImageUtils.createPlaceholder(300, 200, "Textures"),
+                status: "active",
+                soldCount: 78,
+                isNew: false,
+                isBestSeller: false,
+                isOnPromo: false
+            },
+            {
+                id: 5,
+                name: "Icon Pack Bundle",
+                price: 180000,
+                promoPrice: 149000,
+                description: "Paket lengkap 500+ ikon untuk UI/UX design",
+                image: ImageUtils.createPlaceholder(300, 200, "Icons"),
+                status: "active",
+                soldCount: 92,
+                isNew: true,
+                isBestSeller: true,
+                isOnPromo: true
             }
         ];
     }
@@ -1703,25 +1773,95 @@ class AdminApp {
         this.updateStatElement('totalProducts', totalProducts);
         this.updateStatElement('soldProducts', soldProducts);
         this.updateStatElement('monthlyRevenue', monthlyRevenue);
+        this.loadRecentActivity();
     }
     getSoldProductsCount() {
-        const customers = this.getCustomersData();
-        return customers.length;
+        return this.productsData.reduce((total, product) => {
+            return total + (product.soldCount || 0);
+        }, 0);
     }
     getMonthlyRevenue() {
-        const customers = this.getCustomersData();
+        const orders = this.getOrders();
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
-        return customers
+        const orderRevenue = orders
+            .filter(order => {
+            if (order.status !== 'completed' || !order.completedDate)
+                return false;
+            const completedDate = new Date(order.completedDate);
+            return completedDate.getMonth() === currentMonth &&
+                completedDate.getFullYear() === currentYear;
+        })
+            .reduce((total, order) => total + order.totalAmount, 0);
+        const customers = this.getCustomersData();
+        const customerRevenue = customers
             .filter(customer => {
             const purchaseDate = new Date(customer.date);
             return purchaseDate.getMonth() === currentMonth &&
                 purchaseDate.getFullYear() === currentYear;
         })
             .reduce((total, customer) => total + customer.amount, 0);
+        return orderRevenue + customerRevenue;
     }
     getCustomersData() {
-        return SafeStorage.get(StorageKeys.CUSTOMERS_DATA, []);
+        const defaultCustomers = [
+            {
+                id: 1,
+                name: 'Ahmad Rizki',
+                email: 'ahmad.rizki@email.com',
+                phone: '+62 812-3456-7890',
+                product: 'Beat Trap "Dark Vibes"',
+                amount: 75000,
+                date: '2024-02-20',
+                status: 'new',
+                createdAt: '2024-01-15T10:30:00.000Z'
+            },
+            {
+                id: 2,
+                name: 'Siti Nurhaliza',
+                email: 'siti.nurhaliza@email.com',
+                phone: '+62 813-9876-5432',
+                product: 'Beat Hip-Hop "Street Flow"',
+                amount: 85000,
+                date: '2024-02-15',
+                status: 'returning',
+                createdAt: '2024-02-01T14:20:00.000Z'
+            },
+            {
+                id: 3,
+                name: 'Budi Santoso',
+                email: 'budi.santoso@email.com',
+                phone: '+62 814-5555-1234',
+                product: 'Chill Beats Pack',
+                amount: 120000,
+                date: '2024-02-25',
+                status: 'vip',
+                createdAt: '2023-12-10T09:15:00.000Z'
+            },
+            {
+                id: 4,
+                name: 'Maya Sari',
+                email: 'maya.sari@email.com',
+                phone: '+62 815-7777-8888',
+                product: 'Beat R&B "Smooth Vibes"',
+                amount: 90000,
+                date: '2024-02-18',
+                status: 'new',
+                createdAt: '2024-02-10T16:45:00.000Z'
+            },
+            {
+                id: 5,
+                name: 'Dedi Kurniawan',
+                email: 'dedi.kurniawan@email.com',
+                phone: '+62 816-9999-0000',
+                product: 'Beat Drill "Hard Bass"',
+                amount: 95000,
+                date: '2024-02-22',
+                status: 'returning',
+                createdAt: '2024-01-20T11:30:00.000Z'
+            }
+        ];
+        return SafeStorage.get(StorageKeys.CUSTOMERS_DATA, defaultCustomers);
     }
     saveCustomersData(customers) {
         SafeStorage.set(StorageKeys.CUSTOMERS_DATA, customers);
@@ -1870,6 +2010,86 @@ class AdminApp {
         document.body.removeChild(link);
         this.showMessage('Data customer berhasil diekspor!', 'success');
     }
+    loadRecentActivity() {
+        const activityList = DOMUtils.getElementById('activityList');
+        if (!activityList)
+            return;
+        const orders = this.getOrders();
+        const recentActivities = [];
+        orders
+            .filter(order => order.status === 'completed')
+            .sort((a, b) => new Date(b.completedDate || b.orderDate).getTime() - new Date(a.completedDate || a.orderDate).getTime())
+            .slice(0, 5)
+            .forEach(order => {
+            const completedDate = new Date(order.completedDate || order.orderDate);
+            const timeAgo = this.getTimeAgo(completedDate);
+            recentActivities.push({
+                icon: '✅',
+                message: `Pesanan ${order.productName} dikonfirmasi untuk ${order.buyerName}`,
+                time: timeAgo
+            });
+        });
+        orders
+            .filter(order => order.status === 'pending')
+            .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+            .slice(0, 3)
+            .forEach(order => {
+            const orderDate = new Date(order.orderDate);
+            const timeAgo = this.getTimeAgo(orderDate);
+            recentActivities.push({
+                icon: '⏳',
+                message: `Pesanan baru ${order.productName} dari ${order.buyerName}`,
+                time: timeAgo
+            });
+        });
+        recentActivities.sort((a, b) => {
+            return 0;
+        });
+        if (recentActivities.length === 0) {
+            activityList.innerHTML = `
+        <div class="activity-item">
+          <span class="activity-icon">📋</span>
+          <div class="activity-content">
+            <div class="activity-message">Belum ada aktivitas terbaru</div>
+            <div class="activity-time">Mulai simulasi untuk melihat aktivitas</div>
+          </div>
+        </div>
+      `;
+        }
+        else {
+            activityList.innerHTML = recentActivities.slice(0, 8).map(activity => `
+        <div class="activity-item">
+          <span class="activity-icon">${activity.icon}</span>
+          <div class="activity-content">
+            <div class="activity-message">${activity.message}</div>
+            <div class="activity-time">${activity.time}</div>
+          </div>
+        </div>
+      `).join('');
+        }
+    }
+    getTimeAgo(date) {
+        const now = new Date();
+        const diffInMs = now.getTime() - date.getTime();
+        const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+        const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+        if (diffInMinutes < 1) {
+            return 'Baru saja';
+        }
+        else if (diffInMinutes < 60) {
+            return `${diffInMinutes} menit yang lalu`;
+        }
+        else if (diffInHours < 24) {
+            return `${diffInHours} jam yang lalu`;
+        }
+        else if (diffInDays < 7) {
+            return `${diffInDays} hari yang lalu`;
+        }
+        else {
+            return date.toLocaleDateString('id-ID');
+        }
+    }
     convertToCSV(customers) {
         const headers = ['Nama', 'Email', 'Telepon', 'Produk', 'Total Pembelian', 'Tanggal', 'Status'];
         const csvRows = [headers.join(',')];
@@ -1913,6 +2133,243 @@ class AdminApp {
             });
         }
     }
+    async renderOrderItems() {
+        try {
+            const orders = this.getOrders();
+            const container = DOMUtils.getElementById('ordersContainer');
+            if (!container) {
+                console.warn('Orders container not found');
+                return;
+            }
+            if (orders.length === 0) {
+                container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-shopping-cart"></i>
+            <h3>Belum Ada Pesanan</h3>
+            <p>Pesanan dari pelanggan akan muncul di sini.</p>
+          </div>
+        `;
+                return;
+            }
+            this.updateOrderStatistics(orders);
+            const tableBody = container.querySelector('tbody');
+            if (tableBody) {
+                tableBody.innerHTML = orders.map(order => this.createOrderRow(order)).join('');
+                this.setupOrderEventListeners();
+            }
+        }
+        catch (error) {
+            console.error('Error rendering orders:', error);
+            ErrorUtils.handleError(new Error('Failed to load orders'), 'renderOrderItems');
+        }
+    }
+    getOrders() {
+        try {
+            return JSON.parse(localStorage.getItem('orders') || '[]');
+        }
+        catch (error) {
+            console.error('Error loading orders:', error);
+            return [];
+        }
+    }
+    updateOrderStatistics(orders) {
+        const totalOrders = orders.length;
+        const pendingOrders = orders.filter(order => order.status === 'pending').length;
+        const completedOrders = orders.filter(order => order.status === 'completed').length;
+        const totalElement = DOMUtils.getElementById('totalOrders');
+        const pendingElement = DOMUtils.getElementById('pendingOrders');
+        const completedElement = DOMUtils.getElementById('completedOrders');
+        this.updateOrderNotificationBadge(pendingOrders);
+        if (totalElement)
+            totalElement.textContent = totalOrders.toString();
+        if (pendingElement)
+            pendingElement.textContent = pendingOrders.toString();
+        if (completedElement)
+            completedElement.textContent = completedOrders.toString();
+    }
+    updateOrderNotificationBadge(pendingCount) {
+        const badge = DOMUtils.getElementById('orderNotificationBadge');
+        if (badge) {
+            if (pendingCount > 0) {
+                badge.textContent = pendingCount.toString();
+                badge.style.display = 'flex';
+            }
+            else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    createOrderRow(order) {
+        const statusClass = order.status === 'pending' ? 'status-pending' : 'status-completed';
+        const statusText = order.status === 'pending' ? 'Menunggu Konfirmasi' : 'Selesai';
+        const orderDate = new Date(order.orderDate).toLocaleDateString('id-ID');
+        return `
+      <tr data-order-id="${order.id}">
+        <td>#${order.id.slice(-6)}</td>
+        <td>${order.buyerName}</td>
+        <td>${order.buyerEmail}</td>
+        <td>${order.productName}</td>
+        <td>${order.paymentMethod}</td>
+        <td>${FormatUtils.formatPrice(order.totalAmount)}</td>
+        <td><span class="status ${statusClass}">${statusText}</span></td>
+        <td>${orderDate}</td>
+        <td>
+          ${order.status === 'pending' ? `
+            <button class="btn btn-sm btn-success" onclick="confirmOrder('${order.id}')">
+              <i class="fas fa-check"></i> Konfirmasi
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="rejectOrder('${order.id}')">
+              <i class="fas fa-times"></i> Tolak
+            </button>
+          ` : `
+            <button class="btn btn-sm btn-info" onclick="viewOrderDetails('${order.id}')">
+              <i class="fas fa-eye"></i> Detail
+            </button>
+          `}
+        </td>
+      </tr>
+    `;
+    }
+    setupOrderEventListeners() {
+        const exportBtn = DOMUtils.getElementById('exportOrdersBtn');
+        if (exportBtn) {
+            exportBtn.onclick = () => this.exportOrders();
+        }
+        const searchInput = DOMUtils.getElementById('orderSearch');
+        if (searchInput) {
+            searchInput.oninput = debounce(() => this.filterOrders(), 300);
+        }
+        const statusFilter = DOMUtils.getElementById('orderStatusFilter');
+        if (statusFilter) {
+            statusFilter.onchange = () => this.filterOrders();
+        }
+    }
+    confirmOrder(orderId) {
+        try {
+            const orders = this.getOrders();
+            const orderIndex = orders.findIndex(order => order.id === orderId);
+            if (orderIndex === -1) {
+                console.error('Order not found');
+                return;
+            }
+            orders[orderIndex].status = 'completed';
+            orders[orderIndex].completedDate = new Date().toISOString();
+            localStorage.setItem('orders', JSON.stringify(orders));
+            this.updateProductSoldCount(orders[orderIndex].productId);
+            this.updateDashboardStats();
+            alert('Pesanan berhasil dikonfirmasi! File akan dikirim ke email pelanggan.');
+            this.renderOrderItems();
+        }
+        catch (error) {
+            console.error('Error confirming order:', error);
+            console.error('Failed to confirm order');
+        }
+    }
+    rejectOrder(orderId) {
+        if (!confirm('Apakah Anda yakin ingin menolak pesanan ini?')) {
+            return;
+        }
+        try {
+            const orders = this.getOrders();
+            const updatedOrders = orders.filter(order => order.id !== orderId);
+            localStorage.setItem('orders', JSON.stringify(updatedOrders));
+            alert('Pesanan berhasil ditolak dan dihapus.');
+            this.renderOrderItems();
+        }
+        catch (error) {
+            console.error('Error rejecting order:', error);
+            console.error('Failed to reject order');
+        }
+    }
+    viewOrderDetails(orderId) {
+        const orders = this.getOrders();
+        const order = orders.find(order => order.id === orderId);
+        if (!order) {
+            console.error('Order not found');
+            return;
+        }
+        const orderDate = new Date(order.orderDate).toLocaleString('id-ID');
+        const completedDate = order.completedDate ? new Date(order.completedDate).toLocaleString('id-ID') : '-';
+        alert(`Detail Pesanan #${order.id.slice(-6)}\n\n` +
+            `Nama: ${order.buyerName}\n` +
+            `Email: ${order.buyerEmail}\n` +
+            `Produk: ${order.productName}\n` +
+            `Metode Pembayaran: ${order.paymentMethod}\n` +
+            `Total: ${FormatUtils.formatPrice(order.totalAmount)}\n` +
+            `Status: ${order.status === 'pending' ? 'Menunggu Konfirmasi' : 'Selesai'}\n` +
+            `Tanggal Pesanan: ${orderDate}\n` +
+            `Tanggal Selesai: ${completedDate}\n` +
+            `Catatan: ${order.notes || 'Tidak ada catatan'}`);
+    }
+    updateProductSoldCount(productId) {
+        try {
+            const products = this.productsData;
+            const productIndex = products.findIndex(p => p.id === productId);
+            if (productIndex !== -1) {
+                if (products[productIndex]) {
+                    products[productIndex].soldCount = (products[productIndex]?.soldCount || 0) + 1;
+                }
+                SafeStorage.set(StorageKeys.PRODUCTS_DATA, products);
+                this.productsData = products;
+            }
+        }
+        catch (error) {
+            console.error('Error updating product sold count:', error);
+        }
+    }
+    filterOrders() {
+        const searchInput = DOMUtils.getElementById('orderSearch');
+        const statusFilter = DOMUtils.getElementById('orderStatusFilter');
+        const tableRows = DOMUtils.querySelectorAll('#ordersContainer tbody tr');
+        const searchTerm = searchInput?.value.toLowerCase() || '';
+        const statusFilter_value = statusFilter?.value || 'all';
+        tableRows.forEach(row => {
+            const orderData = row.textContent?.toLowerCase() || '';
+            const statusElement = row.querySelector('.status');
+            const orderStatus = statusElement?.classList.contains('status-pending') ? 'pending' : 'completed';
+            const matchesSearch = orderData.includes(searchTerm);
+            const matchesStatus = statusFilter_value === 'all' || orderStatus === statusFilter_value;
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        });
+    }
+    exportOrders() {
+        try {
+            const orders = this.getOrders();
+            if (orders.length === 0) {
+                alert('Tidak ada data pesanan untuk diekspor.');
+                return;
+            }
+            const headers = ['ID Pesanan', 'Nama Pembeli', 'Email', 'Produk', 'Metode Pembayaran', 'Total', 'Status', 'Tanggal Pesanan', 'Catatan'];
+            const csvContent = [headers.join(',')];
+            orders.forEach(order => {
+                const row = [
+                    `#${order.id.slice(-6)}`,
+                    order.buyerName,
+                    order.buyerEmail,
+                    order.productName,
+                    order.paymentMethod,
+                    order.totalAmount,
+                    order.status === 'pending' ? 'Menunggu Konfirmasi' : 'Selesai',
+                    new Date(order.orderDate).toLocaleDateString('id-ID'),
+                    order.notes || ''
+                ];
+                csvContent.push(row.join(','));
+            });
+            const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `orders_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        catch (error) {
+            console.error('Error exporting orders:', error);
+            console.error('Failed to export orders');
+        }
+    }
 }
 const adminApp = new AdminApp();
 if (document.readyState === 'loading') {
@@ -1929,6 +2386,12 @@ window.showCustomerModal = () => adminApp.showCustomerModal();
 window.closeCustomerModal = () => adminApp.closeCustomerModal();
 window.deleteCustomer = (id) => adminApp.deleteCustomer(id);
 window.exportCustomers = () => adminApp.exportCustomers();
+window.switchToTab = (tabName) => adminApp.switchToTab(tabName);
+window.showPortfolioModal = () => adminApp.showPortfolioModal();
+window.showProductModal = () => adminApp.showProductModal();
+window.confirmOrder = (orderId) => adminApp.confirmOrder(orderId);
+window.rejectOrder = (orderId) => adminApp.rejectOrder(orderId);
+window.viewOrderDetails = (orderId) => adminApp.viewOrderDetails(orderId);
 export default adminApp;
 export { AdminApp };
 //# sourceMappingURL=admin-script.js.map

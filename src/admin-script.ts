@@ -150,6 +150,11 @@ class AdminApp {
 
     // Load user data
     this.currentUser = SafeStorage.get(StorageKeys.USER_DATA, null);
+    
+    // Update order notification badge on load
+    const orders = this.getOrders();
+    const pendingOrders = orders.filter(order => order.status === 'pending').length;
+    this.updateOrderNotificationBadge(pendingOrders);
 
     // Save default data if not exists
     if (!SafeStorage.get(StorageKeys.PORTFOLIO_DATA, null)) {
@@ -604,31 +609,41 @@ class AdminApp {
   private createProductAdminCard(product: ProductItem): HTMLElement {
     const card = DOMUtils.createElement<HTMLDivElement>('div', 'product-item');
     
-    // Create price display with discount
+    // Create price display with promo price
     let priceDisplay = FormatUtils.formatPrice(product.price);
-    if (product.originalPrice && product.discount && product.discount > 0) {
+    if (product.promoPrice && product.isOnPromo) {
       priceDisplay = `
         <div class="price-container">
-          <span class="original-price">${FormatUtils.formatPrice(product.originalPrice)}</span>
-          <span class="current-price">${FormatUtils.formatPrice(product.price)}</span>
-          <span class="discount-badge">-${product.discount}%</span>
+          <span class="original-price">${FormatUtils.formatPrice(product.price)}</span>
+          <span class="current-price">${FormatUtils.formatPrice(product.promoPrice)}</span>
         </div>
       `;
     }
+    
+    // Create product labels
+    const labels = [];
+    if (product.isNew) labels.push('<span class="product-label label-new">NEW</span>');
+    if (product.isBestSeller) labels.push('<span class="product-label label-bestseller">TERLARIS</span>');
+    if (product.isOnPromo) labels.push('<span class="product-label label-promo">PROMO</span>');
+    const labelsDisplay = labels.length > 0 ? `<div class="product-labels">${labels.join('')}</div>` : '';
     
     // Create category and type display
     const categoryDisplay = product.category ? `<span class="item-category">${this.getCategoryDisplayName(product.category)}</span>` : '';
     const typeDisplay = product.type ? `<span class="item-type ${product.type}">${product.type.toUpperCase()}</span>` : '';
     
+    // Sold count display
+    const soldDisplay = product.soldCount ? `<span class="sold-count"><i class="fas fa-shopping-cart"></i> ${product.soldCount} terjual</span>` : '';
+    
     card.innerHTML = `
       <div class="item-image">
         <img src="${product.image}" alt="${product.name}" loading="lazy">
-        ${product.discount && product.discount > 0 ? `<div class="discount-overlay">-${product.discount}%</div>` : ''}
+        ${labelsDisplay}
       </div>
       <div class="item-content">
         <h4 class="item-title">${product.name}</h4>
         <p class="item-description">${product.description}</p>
         <div class="item-price">${priceDisplay}</div>
+        ${soldDisplay ? `<div class="item-sold">${soldDisplay}</div>` : ''}
         <div class="item-meta">
           ${categoryDisplay}
           ${typeDisplay}
@@ -1774,7 +1789,7 @@ class AdminApp {
   /**
    * Switch to specific tab
    */
-  private switchToTab(tabName: TabName): void {
+  public switchToTab(tabName: TabName): void {
     const tabButton = DOMUtils.querySelector<HTMLElement>(`[data-tab="${tabName}"]`);
     if (tabButton) {
       tabButton.click();
@@ -1794,6 +1809,9 @@ class AdminApp {
         break;
       case 'products':
         await this.renderProductItems();
+        break;
+      case 'orders':
+        await this.renderOrderItems();
         break;
       case 'settings':
         await this.loadSettings();
@@ -2218,7 +2236,7 @@ class AdminApp {
   /**
    * Show product modal
    */
-  private showProductModal(): void {
+  public showProductModal(): void {
     // Check authentication first
     if (!this.requireAuth()) return;
     
@@ -2249,7 +2267,7 @@ class AdminApp {
   /**
    * Show portfolio modal
    */
-  private showPortfolioModal(): void {
+  public showPortfolioModal(): void {
     // Check authentication first
     if (!this.requireAuth()) return;
     
@@ -2302,11 +2320,66 @@ class AdminApp {
     return [
       {
         id: 1,
-        name: "Sample Product",
+        name: "Brush Pack Premium",
+        price: 150000,
+        promoPrice: 120000,
+        description: "Koleksi 50+ brush digital untuk ilustrasi",
+        image: ImageUtils.createPlaceholder(300, 200, "Brush Pack"),
+        status: "active",
+        soldCount: 89,
+        isNew: false,
+        isBestSeller: true,
+        isOnPromo: true
+      },
+      {
+        id: 2,
+        name: "Font Collection",
+        price: 200000,
+        description: "10 font unik untuk branding dan desain",
+        image: ImageUtils.createPlaceholder(300, 200, "Font Pack"),
+        status: "active",
+        soldCount: 56,
+        isNew: true,
+        isBestSeller: false,
+        isOnPromo: false
+      },
+      {
+        id: 3,
+        name: "Photoshop Actions",
         price: 100000,
-        description: "Sample digital product",
-        image: ImageUtils.createPlaceholder(300, 200, "Product"),
-        status: "active"
+        promoPrice: 75000,
+        description: "25 action untuk efek foto profesional",
+        image: ImageUtils.createPlaceholder(300, 200, "PS Actions"),
+        status: "active",
+        soldCount: 134,
+        isNew: false,
+        isBestSeller: true,
+        isOnPromo: true
+      },
+      {
+        id: 4,
+        name: "Texture Pack",
+        price: 120000,
+        description: "Koleksi tekstur high-res untuk desain",
+        image: ImageUtils.createPlaceholder(300, 200, "Textures"),
+        status: "active",
+        soldCount: 78,
+        isNew: false,
+        isBestSeller: false,
+        isOnPromo: false
+      },
+      {
+        id: 5,
+        name: "Icon Pack Bundle",
+        price: 180000,
+        promoPrice: 149000,
+        description: "Paket lengkap 500+ ikon untuk UI/UX design",
+        image: ImageUtils.createPlaceholder(300, 200, "Icons"),
+        status: "active",
+        soldCount: 92,
+        isNew: true,
+        isBestSeller: true,
+        isOnPromo: true
       }
     ];
   }
@@ -2462,29 +2535,107 @@ class AdminApp {
     this.updateStatElement('totalProducts', totalProducts);
     this.updateStatElement('soldProducts', soldProducts);
     this.updateStatElement('monthlyRevenue', monthlyRevenue);
+    
+    // Load recent activity
+    this.loadRecentActivity();
   }
 
   private getSoldProductsCount(): number {
-    const customers = this.getCustomersData();
-    return customers.length;
+    // Calculate total sold products from product data
+    return this.productsData.reduce((total, product) => {
+      return total + (product.soldCount || 0);
+    }, 0);
   }
 
   private getMonthlyRevenue(): number {
-    const customers = this.getCustomersData();
+    // Calculate monthly revenue based on completed orders
+    const orders = this.getOrders();
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
-    return customers
+    // Calculate revenue from completed orders this month
+    const orderRevenue = orders
+      .filter(order => {
+        if (order.status !== 'completed' || !order.completedDate) return false;
+        const completedDate = new Date(order.completedDate);
+        return completedDate.getMonth() === currentMonth && 
+               completedDate.getFullYear() === currentYear;
+      })
+      .reduce((total, order) => total + order.totalAmount, 0);
+    
+    // Add dummy customer revenue for demonstration
+    const customers = this.getCustomersData();
+    const customerRevenue = customers
       .filter(customer => {
         const purchaseDate = new Date(customer.date);
         return purchaseDate.getMonth() === currentMonth && 
                purchaseDate.getFullYear() === currentYear;
       })
       .reduce((total, customer) => total + customer.amount, 0);
+    
+    return orderRevenue + customerRevenue;
   }
 
   private getCustomersData(): any[] {
-    return SafeStorage.get(StorageKeys.CUSTOMERS_DATA, []);
+    const defaultCustomers = [
+      {
+        id: 1,
+        name: 'Ahmad Rizki',
+        email: 'ahmad.rizki@email.com',
+        phone: '+62 812-3456-7890',
+        product: 'Beat Trap "Dark Vibes"',
+        amount: 75000,
+        date: '2024-02-20',
+        status: 'new',
+        createdAt: '2024-01-15T10:30:00.000Z'
+      },
+      {
+        id: 2,
+        name: 'Siti Nurhaliza',
+        email: 'siti.nurhaliza@email.com',
+        phone: '+62 813-9876-5432',
+        product: 'Beat Hip-Hop "Street Flow"',
+        amount: 85000,
+        date: '2024-02-15',
+        status: 'returning',
+        createdAt: '2024-02-01T14:20:00.000Z'
+      },
+      {
+        id: 3,
+        name: 'Budi Santoso',
+        email: 'budi.santoso@email.com',
+        phone: '+62 814-5555-1234',
+        product: 'Chill Beats Pack',
+        amount: 120000,
+        date: '2024-02-25',
+        status: 'vip',
+        createdAt: '2023-12-10T09:15:00.000Z'
+      },
+      {
+        id: 4,
+        name: 'Maya Sari',
+        email: 'maya.sari@email.com',
+        phone: '+62 815-7777-8888',
+        product: 'Beat R&B "Smooth Vibes"',
+        amount: 90000,
+        date: '2024-02-18',
+        status: 'new',
+        createdAt: '2024-02-10T16:45:00.000Z'
+      },
+      {
+        id: 5,
+        name: 'Dedi Kurniawan',
+        email: 'dedi.kurniawan@email.com',
+        phone: '+62 816-9999-0000',
+        product: 'Beat Drill "Hard Bass"',
+        amount: 95000,
+        date: '2024-02-22',
+        status: 'returning',
+        createdAt: '2024-01-20T11:30:00.000Z'
+      }
+    ];
+    
+    return SafeStorage.get(StorageKeys.CUSTOMERS_DATA, defaultCustomers);
   }
 
   private saveCustomersData(customers: any[]): void {
@@ -2657,6 +2808,98 @@ class AdminApp {
     this.showMessage('Data customer berhasil diekspor!', 'success');
   }
 
+  /**
+   * Load recent activity
+   */
+  private loadRecentActivity(): void {
+    const activityList = DOMUtils.getElementById<HTMLElement>('activityList');
+    if (!activityList) return;
+
+    // Get recent activities from orders
+    const orders = this.getOrders();
+    const recentActivities: any[] = [];
+
+    // Add completed orders to recent activities
+    orders
+      .filter(order => order.status === 'completed')
+      .sort((a, b) => new Date(b.completedDate || b.orderDate).getTime() - new Date(a.completedDate || a.orderDate).getTime())
+      .slice(0, 5) // Show last 5 activities
+      .forEach(order => {
+        const completedDate = new Date(order.completedDate || order.orderDate);
+        const timeAgo = this.getTimeAgo(completedDate);
+        
+        recentActivities.push({
+          icon: '✅',
+          message: `Pesanan ${order.productName} dikonfirmasi untuk ${order.buyerName}`,
+          time: timeAgo
+        });
+      });
+
+    // Add pending orders to recent activities
+    orders
+      .filter(order => order.status === 'pending')
+      .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+      .slice(0, 3) // Show last 3 pending orders
+      .forEach(order => {
+        const orderDate = new Date(order.orderDate);
+        const timeAgo = this.getTimeAgo(orderDate);
+        
+        recentActivities.push({
+          icon: '⏳',
+          message: `Pesanan baru ${order.productName} dari ${order.buyerName}`,
+          time: timeAgo
+        });
+      });
+
+    // Sort all activities by time
+    recentActivities.sort((a, b) => {
+      // This is a simple sort, in real implementation you'd want to sort by actual timestamp
+      return 0;
+    });
+
+    if (recentActivities.length === 0) {
+      activityList.innerHTML = `
+        <div class="activity-item">
+          <span class="activity-icon">📋</span>
+          <div class="activity-content">
+            <div class="activity-message">Belum ada aktivitas terbaru</div>
+            <div class="activity-time">Mulai simulasi untuk melihat aktivitas</div>
+          </div>
+        </div>
+      `;
+    } else {
+      activityList.innerHTML = recentActivities.slice(0, 8).map(activity => `
+        <div class="activity-item">
+          <span class="activity-icon">${activity.icon}</span>
+          <div class="activity-content">
+            <div class="activity-message">${activity.message}</div>
+            <div class="activity-time">${activity.time}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  private getTimeAgo(date: Date): string {
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMinutes < 1) {
+      return 'Baru saja';
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes} menit yang lalu`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} jam yang lalu`;
+    } else if (diffInDays < 7) {
+      return `${diffInDays} hari yang lalu`;
+    } else {
+      return date.toLocaleDateString('id-ID');
+    }
+  }
+
   private convertToCSV(customers: any[]): string {
     const headers = ['Nama', 'Email', 'Telepon', 'Produk', 'Total Pembelian', 'Tanggal', 'Status'];
     const csvRows = [headers.join(',')];
@@ -2707,6 +2950,336 @@ class AdminApp {
       });
     }
   }
+
+  /**
+   * Render order items in the orders tab
+   */
+  private async renderOrderItems(): Promise<void> {
+    try {
+      const orders = this.getOrders();
+      const container = DOMUtils.getElementById<HTMLElement>('ordersContainer');
+      
+      if (!container) {
+        console.warn('Orders container not found');
+        return;
+      }
+
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-shopping-cart"></i>
+            <h3>Belum Ada Pesanan</h3>
+            <p>Pesanan dari pelanggan akan muncul di sini.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Update statistics
+      this.updateOrderStatistics(orders);
+
+      // Render orders table
+      const tableBody = container.querySelector('tbody');
+      if (tableBody) {
+        tableBody.innerHTML = orders.map(order => this.createOrderRow(order)).join('');
+        
+        // Setup event listeners for order actions
+        this.setupOrderEventListeners();
+      }
+    } catch (error) {
+      console.error('Error rendering orders:', error);
+      ErrorUtils.handleError(new Error('Failed to load orders'), 'renderOrderItems');
+    }
+  }
+
+  /**
+   * Get orders from localStorage
+   */
+  private getOrders(): any[] {
+    try {
+      return JSON.parse(localStorage.getItem('orders') || '[]');
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Update order statistics
+   */
+  private updateOrderStatistics(orders: any[]): void {
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(order => order.status === 'pending').length;
+    const completedOrders = orders.filter(order => order.status === 'completed').length;
+
+    // Update statistics in the UI
+    const totalElement = DOMUtils.getElementById('totalOrders');
+    const pendingElement = DOMUtils.getElementById('pendingOrders');
+    const completedElement = DOMUtils.getElementById('completedOrders');
+    
+    // Update notification badge
+    this.updateOrderNotificationBadge(pendingOrders);
+
+    if (totalElement) totalElement.textContent = totalOrders.toString();
+    if (pendingElement) pendingElement.textContent = pendingOrders.toString();
+    if (completedElement) completedElement.textContent = completedOrders.toString();
+  }
+
+  /**
+   * Update order notification badge
+   */
+  private updateOrderNotificationBadge(pendingCount: number): void {
+    const badge = DOMUtils.getElementById('orderNotificationBadge');
+    if (badge) {
+      if (pendingCount > 0) {
+        badge.textContent = pendingCount.toString();
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Create order row HTML
+   */
+  private createOrderRow(order: any): string {
+    const statusClass = order.status === 'pending' ? 'status-pending' : 'status-completed';
+    const statusText = order.status === 'pending' ? 'Menunggu Konfirmasi' : 'Selesai';
+    const orderDate = new Date(order.orderDate).toLocaleDateString('id-ID');
+    
+    return `
+      <tr data-order-id="${order.id}">
+        <td>#${order.id.slice(-6)}</td>
+        <td>${order.buyerName}</td>
+        <td>${order.buyerEmail}</td>
+        <td>${order.productName}</td>
+        <td>${order.paymentMethod}</td>
+        <td>${FormatUtils.formatPrice(order.totalAmount)}</td>
+        <td><span class="status ${statusClass}">${statusText}</span></td>
+        <td>${orderDate}</td>
+        <td>
+          ${order.status === 'pending' ? `
+            <button class="btn btn-sm btn-success" onclick="confirmOrder('${order.id}')">
+              <i class="fas fa-check"></i> Konfirmasi
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="rejectOrder('${order.id}')">
+              <i class="fas fa-times"></i> Tolak
+            </button>
+          ` : `
+            <button class="btn btn-sm btn-info" onclick="viewOrderDetails('${order.id}')">
+              <i class="fas fa-eye"></i> Detail
+            </button>
+          `}
+        </td>
+      </tr>
+    `;
+  }
+
+  /**
+   * Setup event listeners for order actions
+   */
+  private setupOrderEventListeners(): void {
+    // Export orders button
+    const exportBtn = DOMUtils.getElementById('exportOrdersBtn');
+    if (exportBtn) {
+      exportBtn.onclick = () => this.exportOrders();
+    }
+
+    // Search functionality
+    const searchInput = DOMUtils.getElementById<HTMLInputElement>('orderSearch');
+    if (searchInput) {
+      searchInput.oninput = debounce(() => this.filterOrders(), 300);
+    }
+
+    // Status filter
+    const statusFilter = DOMUtils.getElementById<HTMLSelectElement>('orderStatusFilter');
+    if (statusFilter) {
+      statusFilter.onchange = () => this.filterOrders();
+    }
+  }
+
+  /**
+   * Confirm an order
+   */
+  public confirmOrder(orderId: string): void {
+    try {
+      const orders = this.getOrders();
+      const orderIndex = orders.findIndex(order => order.id === orderId);
+      
+      if (orderIndex === -1) {
+        console.error('Order not found');
+        return;
+      }
+
+      // Update order status
+      orders[orderIndex].status = 'completed';
+      orders[orderIndex].completedDate = new Date().toISOString();
+      
+      // Save updated orders
+      localStorage.setItem('orders', JSON.stringify(orders));
+      
+      // Update sold count for the product
+      this.updateProductSoldCount(orders[orderIndex].productId);
+      
+      // Update dashboard statistics
+      this.updateDashboardStats();
+      
+      // Show success message
+      alert('Pesanan berhasil dikonfirmasi! File akan dikirim ke email pelanggan.');
+      
+      // Refresh the orders view
+      this.renderOrderItems();
+      
+      // Here you would typically integrate with email service
+      // this.sendProductToCustomer(orders[orderIndex]);
+      
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      console.error('Failed to confirm order');
+    }
+  }
+
+  /**
+   * Reject an order
+   */
+  public rejectOrder(orderId: string): void {
+    if (!confirm('Apakah Anda yakin ingin menolak pesanan ini?')) {
+      return;
+    }
+
+    try {
+      const orders = this.getOrders();
+      const updatedOrders = orders.filter(order => order.id !== orderId);
+      
+      localStorage.setItem('orders', JSON.stringify(updatedOrders));
+      
+      alert('Pesanan berhasil ditolak dan dihapus.');
+      this.renderOrderItems();
+      
+    } catch (error) {
+      console.error('Error rejecting order:', error);
+      console.error('Failed to reject order');
+    }
+  }
+
+  /**
+   * View order details
+   */
+  public viewOrderDetails(orderId: string): void {
+    const orders = this.getOrders();
+    const order = orders.find(order => order.id === orderId);
+    
+    if (!order) {
+      console.error('Order not found');
+      return;
+    }
+
+    const orderDate = new Date(order.orderDate).toLocaleString('id-ID');
+    const completedDate = order.completedDate ? new Date(order.completedDate).toLocaleString('id-ID') : '-';
+    
+    alert(`Detail Pesanan #${order.id.slice(-6)}\n\n` +
+          `Nama: ${order.buyerName}\n` +
+          `Email: ${order.buyerEmail}\n` +
+          `Produk: ${order.productName}\n` +
+          `Metode Pembayaran: ${order.paymentMethod}\n` +
+          `Total: ${FormatUtils.formatPrice(order.totalAmount)}\n` +
+          `Status: ${order.status === 'pending' ? 'Menunggu Konfirmasi' : 'Selesai'}\n` +
+          `Tanggal Pesanan: ${orderDate}\n` +
+          `Tanggal Selesai: ${completedDate}\n` +
+          `Catatan: ${order.notes || 'Tidak ada catatan'}`);
+  }
+
+  /**
+   * Update product sold count
+   */
+  private updateProductSoldCount(productId: number): void {
+    try {
+      const products = this.productsData;
+      const productIndex = products.findIndex(p => p.id === productId);
+      
+      if (productIndex !== -1) {
+        if (products[productIndex]) {
+            products[productIndex].soldCount = (products[productIndex]?.soldCount || 0) + 1;
+        }
+        SafeStorage.set(StorageKeys.PRODUCTS_DATA, products);
+        this.productsData = products;
+      }
+    } catch (error) {
+      console.error('Error updating product sold count:', error);
+    }
+  }
+
+  /**
+   * Filter orders based on search and status
+   */
+  private filterOrders(): void {
+    const searchInput = DOMUtils.getElementById<HTMLInputElement>('orderSearch');
+    const statusFilter = DOMUtils.getElementById<HTMLSelectElement>('orderStatusFilter');
+    const tableRows = DOMUtils.querySelectorAll<HTMLTableRowElement>('#ordersContainer tbody tr');
+
+    const searchTerm = searchInput?.value.toLowerCase() || '';
+    const statusFilter_value = statusFilter?.value || 'all';
+
+    tableRows.forEach(row => {
+      const orderData = row.textContent?.toLowerCase() || '';
+      const statusElement = row.querySelector('.status');
+      const orderStatus = statusElement?.classList.contains('status-pending') ? 'pending' : 'completed';
+      
+      const matchesSearch = orderData.includes(searchTerm);
+      const matchesStatus = statusFilter_value === 'all' || orderStatus === statusFilter_value;
+      
+      row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+    });
+  }
+
+  /**
+   * Export orders to CSV
+   */
+  private exportOrders(): void {
+    try {
+      const orders = this.getOrders();
+      
+      if (orders.length === 0) {
+        alert('Tidak ada data pesanan untuk diekspor.');
+        return;
+      }
+
+      const headers = ['ID Pesanan', 'Nama Pembeli', 'Email', 'Produk', 'Metode Pembayaran', 'Total', 'Status', 'Tanggal Pesanan', 'Catatan'];
+      const csvContent = [headers.join(',')];
+      
+      orders.forEach(order => {
+        const row = [
+          `#${order.id.slice(-6)}`,
+          order.buyerName,
+          order.buyerEmail,
+          order.productName,
+          order.paymentMethod,
+          order.totalAmount,
+          order.status === 'pending' ? 'Menunggu Konfirmasi' : 'Selesai',
+          new Date(order.orderDate).toLocaleDateString('id-ID'),
+          order.notes || ''
+        ];
+        csvContent.push(row.join(','));
+      });
+
+      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `orders_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Error exporting orders:', error);
+      console.error('Failed to export orders');
+    }
+  }
 }
 
 // Initialize the admin application when DOM is ready
@@ -2718,7 +3291,7 @@ if (document.readyState === 'loading') {
   adminApp.init();
 }
 
-// Global functions for HTML onclick handlers
+// Export functions to global scope for HTML onclick handlers
 (window as any).previewPortfolioImageUrl = () => adminApp.previewPortfolioImageUrl();
 (window as any).previewProductImageUrl = () => adminApp.previewProductImageUrl();
 (window as any).clearPortfolioImage = () => adminApp.clearPortfolioImage();
@@ -2727,6 +3300,12 @@ if (document.readyState === 'loading') {
 (window as any).closeCustomerModal = () => adminApp.closeCustomerModal();
 (window as any).deleteCustomer = (id: number) => adminApp.deleteCustomer(id);
 (window as any).exportCustomers = () => adminApp.exportCustomers();
+(window as any).switchToTab = (tabName: string) => adminApp.switchToTab(tabName as TabName);
+(window as any).showPortfolioModal = () => adminApp.showPortfolioModal();
+(window as any).showProductModal = () => adminApp.showProductModal();
+(window as any).confirmOrder = (orderId: string) => adminApp.confirmOrder(orderId);
+(window as any).rejectOrder = (orderId: string) => adminApp.rejectOrder(orderId);
+(window as any).viewOrderDetails = (orderId: string) => adminApp.viewOrderDetails(orderId);
 
 // Export for potential external use
 export default adminApp;

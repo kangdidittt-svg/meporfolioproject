@@ -144,14 +144,13 @@ class PortfolioApp {
       );
     }
 
-    // Product buttons
-    if (this.domElements.productButtons) {
-      DOMUtils.addEventListeners(
-        this.domElements.productButtons,
-        'click',
-        this.handleProductButtonClick
-      );
-    }
+    // Use event delegation for dynamically created product buttons
+    document.addEventListener('click', (event) => {
+      const productButton = (event.target as Element).closest('.btn-primary[data-product-id]') as HTMLElement;
+      if (productButton) {
+        this.handleProductButtonClick(event, productButton);
+      }
+    });
 
     // Window events with throttling/debouncing
     window.addEventListener('scroll', throttle(this.handleScroll, 16)); // ~60fps
@@ -293,16 +292,39 @@ class PortfolioApp {
   private createProductCard(product: ProductItem): HTMLElement {
     const card = DOMUtils.createElement<HTMLDivElement>('div', 'product-card');
     
+    // Create product labels
+    const labels = [];
+    if (product.isNew) labels.push('<span class="product-label label-new">NEW</span>');
+    if (product.isBestSeller) labels.push('<span class="product-label label-bestseller">TERLARIS</span>');
+    if (product.isOnPromo) labels.push('<span class="product-label label-promo">PROMO</span>');
+    const labelsDisplay = labels.length > 0 ? `<div class="product-labels">${labels.join('')}</div>` : '';
+    
+    // Price display with promo handling
+    let priceDisplay = '';
+    if (product.isOnPromo && product.promoPrice) {
+      priceDisplay = `
+        <span class="promo-price">${FormatUtils.formatPrice(product.promoPrice)}</span>
+        <span class="original-price">${FormatUtils.formatPrice(product.price)}</span>
+      `;
+    } else {
+      priceDisplay = FormatUtils.formatPrice(product.price);
+    }
+    
+    // Sold count display
+    const soldDisplay = product.soldCount ? `<div class="product-sold"><i class="fas fa-shopping-cart"></i> ${product.soldCount} terjual</div>` : '';
+    
     card.innerHTML = `
       <div class="product-image">
         <img src="${product.image}" 
              alt="${product.name}" 
              loading="lazy">
+        ${labelsDisplay}
       </div>
       <div class="product-info">
         <h3>${product.name}</h3>
         <p class="product-description">${product.description}</p>
-        <div class="product-price">${FormatUtils.formatPrice(product.price)}</div>
+        <div class="product-price">${priceDisplay}</div>
+        ${soldDisplay}
         <button class="btn btn-primary" data-product-id="${product.id}">
           <i class="fab fa-whatsapp"></i> Pesan Sekarang
         </button>
@@ -536,10 +558,109 @@ class PortfolioApp {
     const product = this.productsData.find(p => p.id.toString() === productId);
     if (!product) return;
 
-    const message = `Halo, saya tertarik dengan produk "${product.name}" seharga ${FormatUtils.formatPrice(product.price)}.`;
-    const whatsappUrl = `https://wa.me/${this.siteSettings.whatsappNumber}?text=${encodeURIComponent(message)}`;
+    this.showPurchaseModal(product);
+  }
+
+  /**
+   * Show purchase modal for a product
+   */
+  private showPurchaseModal(product: any): void {
+    const modal = document.getElementById('purchaseModal');
+    if (!modal) return;
+
+    // Update product info in modal
+    const productImage = modal.querySelector('.product-image-display img') as HTMLImageElement;
+    const productName = modal.querySelector('.product-details-display h4');
+    const productDesc = modal.querySelector('.product-details-display p');
+    const productPrice = modal.querySelector('.product-price-display');
+    const productIdInput = modal.querySelector('#productId') as HTMLInputElement;
+
+    if (productImage) productImage.src = product.img;
+    if (productName) productName.textContent = product.name;
+    if (productDesc) productDesc.textContent = product.description;
+    if (productPrice) productPrice.textContent = FormatUtils.formatPrice(product.price);
+    if (productIdInput) productIdInput.value = product.id.toString();
+
+    // Show modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Setup close handlers
+    const closeBtn = modal.querySelector('.close-btn');
+    const cancelBtn = modal.querySelector('.btn-secondary');
     
-    window.open(whatsappUrl, '_blank');
+    const closeModal = () => {
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+      this.resetPurchaseForm();
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Setup form submission
+    const form = modal.querySelector('#purchaseForm') as HTMLFormElement;
+    if (form) {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        this.handlePurchaseSubmit(form, product);
+      };
+    }
+  }
+
+  /**
+   * Handle purchase form submission
+   */
+  private handlePurchaseSubmit(form: HTMLFormElement, product: any): void {
+    const formData = new FormData(form);
+    // Calculate actual price (use promo price if available)
+    const actualPrice = (product.isOnPromo && product.promoPrice) ? product.promoPrice : product.price;
+    
+    const orderData = {
+      id: Date.now().toString(),
+      productId: product.id,
+      productName: product.name,
+      productPrice: actualPrice,
+      buyerName: formData.get('buyerName') as string,
+      buyerEmail: formData.get('buyerEmail') as string,
+      paymentMethod: formData.get('paymentMethod') as string,
+      notes: formData.get('notes') as string,
+      status: 'pending',
+      orderDate: new Date().toISOString(),
+      totalAmount: actualPrice
+    };
+
+    // Save order to localStorage
+    const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+    existingOrders.push(orderData);
+    localStorage.setItem('orders', JSON.stringify(existingOrders));
+
+    // Show success message
+    alert('Pesanan berhasil dikirim! Admin akan segera menghubungi Anda.');
+    
+    // Close modal
+    const modal = document.getElementById('purchaseModal');
+    if (modal) {
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+    
+    this.resetPurchaseForm();
+  }
+
+  /**
+   * Reset purchase form
+   */
+  private resetPurchaseForm(): void {
+    const form = document.getElementById('purchaseForm') as HTMLFormElement;
+    if (form) {
+      form.reset();
+    }
   }
 
   /**
@@ -967,9 +1088,14 @@ class PortfolioApp {
         id: 1,
         name: "Brush Pack Premium",
         price: 150000,
+        promoPrice: 120000,
         description: "Koleksi 50+ brush digital untuk ilustrasi",
         image: ImageUtils.createPlaceholder(300, 200, "Brush Pack"),
-        status: "active"
+        status: "active",
+        soldCount: 89,
+        isNew: false,
+        isBestSeller: true,
+        isOnPromo: true
       },
       {
         id: 2,
@@ -977,15 +1103,24 @@ class PortfolioApp {
         price: 200000,
         description: "10 font unik untuk branding dan desain",
         image: ImageUtils.createPlaceholder(300, 200, "Font Pack"),
-        status: "active"
+        status: "active",
+        soldCount: 56,
+        isNew: true,
+        isBestSeller: false,
+        isOnPromo: false
       },
       {
         id: 3,
         name: "Photoshop Actions",
         price: 100000,
+        promoPrice: 75000,
         description: "25 action untuk efek foto profesional",
         image: ImageUtils.createPlaceholder(300, 200, "PS Actions"),
-        status: "active"
+        status: "active",
+        soldCount: 134,
+        isNew: false,
+        isBestSeller: true,
+        isOnPromo: true
       },
       {
         id: 4,
@@ -993,7 +1128,24 @@ class PortfolioApp {
         price: 120000,
         description: "Koleksi tekstur high-res untuk desain",
         image: ImageUtils.createPlaceholder(300, 200, "Textures"),
-        status: "active"
+        status: "active",
+        soldCount: 78,
+        isNew: false,
+        isBestSeller: false,
+        isOnPromo: false
+      },
+      {
+        id: 5,
+        name: "Icon Pack Bundle",
+        price: 180000,
+        promoPrice: 149000,
+        description: "Paket lengkap 500+ ikon untuk UI/UX design",
+        image: ImageUtils.createPlaceholder(300, 200, "Icons"),
+        status: "active",
+        soldCount: 92,
+        isNew: true,
+        isBestSeller: true,
+        isOnPromo: true
       }
     ];
   }

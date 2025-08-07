@@ -28,6 +28,9 @@ declare class PortfolioApp {
     private handleNavigation;
     private handlePortfolioItemClick;
     private handleProductButtonClick;
+    private showPurchaseModal;
+    private handlePurchaseSubmit;
+    private resetPurchaseForm;
     private handleScroll;
     private handleResize;
     private handleWindowLoad;

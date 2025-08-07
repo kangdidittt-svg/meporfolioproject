@@ -1,3 +1,4 @@
+import { TabName } from './types.js';
 declare class AdminApp {
     private portfolioData;
     private productsData;
@@ -75,7 +76,7 @@ declare class AdminApp {
     private editProductItem;
     private deletePortfolioItem;
     private deleteProductItem;
-    private switchToTab;
+    switchToTab(tabName: TabName): void;
     private loadTabData;
     private validateField;
     private showFieldError;
@@ -98,9 +99,9 @@ declare class AdminApp {
     private generateId;
     private getCategoryName;
     private getCategoryDisplayName;
-    private showProductModal;
+    showProductModal(): void;
     private closeProductModal;
-    private showPortfolioModal;
+    showPortfolioModal(): void;
     private closePortfolioModal;
     private getDefaultPortfolio;
     private getDefaultProducts;
@@ -126,8 +127,22 @@ declare class AdminApp {
     private updateCustomerStats;
     deleteCustomer(id: number): void;
     exportCustomers(): void;
+    private loadRecentActivity;
+    private getTimeAgo;
     private convertToCSV;
     private setupCustomerModalHandlers;
+    private renderOrderItems;
+    private getOrders;
+    private updateOrderStatistics;
+    private updateOrderNotificationBadge;
+    private createOrderRow;
+    private setupOrderEventListeners;
+    confirmOrder(orderId: string): void;
+    rejectOrder(orderId: string): void;
+    viewOrderDetails(orderId: string): void;
+    private updateProductSoldCount;
+    private filterOrders;
+    private exportOrders;
 }
 declare const adminApp: AdminApp;
 export default adminApp;

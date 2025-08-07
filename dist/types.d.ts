@@ -16,6 +16,7 @@ export interface ProductItem {
     price: number;
     originalPrice?: number;
     discount?: number;
+    promoPrice?: number;
     description: string;
     image: string;
     status: 'active' | 'inactive';
@@ -23,6 +24,10 @@ export interface ProductItem {
     category?: ProductCategoryName;
     additionalImages?: string[];
     downloadLink?: string;
+    soldCount?: number;
+    isNew?: boolean;
+    isBestSeller?: boolean;
+    isOnPromo?: boolean;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -75,7 +80,7 @@ export interface CropperConfig {
 }
 export type MessageType = 'success' | 'error' | 'warning' | 'info';
 export type ImageTarget = 'profile' | 'portfolio' | 'product' | 'portfolio-thumbnail';
-export type TabName = 'dashboard' | 'portfolio' | 'products' | 'settings';
+export type TabName = 'dashboard' | 'portfolio' | 'products' | 'orders' | 'settings';
 export type CategoryName = 'ilustrasi' | 'character' | 'branding' | 'editorial' | 'concept';
 export type ProductCategoryName = 'brush' | 'font' | 'action' | 'texture' | 'template' | 'other';
 export type SizeName = 'normal' | 'wide2x' | 'tall2x';

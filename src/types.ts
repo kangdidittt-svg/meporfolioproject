@@ -21,6 +21,7 @@ export interface ProductItem {
   price: number;
   originalPrice?: number; // For discount calculation
   discount?: number; // Discount percentage (0-100)
+  promoPrice?: number;
   description: string;
   image: string;
   status: 'active' | 'inactive';
@@ -28,6 +29,10 @@ export interface ProductItem {
   category?: ProductCategoryName;
   additionalImages?: string[];
   downloadLink?: string; // For digital products
+  soldCount?: number; // Number of items sold
+  isNew?: boolean; // New product label
+  isBestSeller?: boolean; // Best seller label
+  isOnPromo?: boolean; // Promo label
   createdAt?: string;
   updatedAt?: string;
 }
@@ -98,7 +103,7 @@ export type MessageType = 'success' | 'error' | 'warning' | 'info';
 export type ImageTarget = 'profile' | 'portfolio' | 'product' | 'portfolio-thumbnail';
 
 // Tab Names
-export type TabName = 'dashboard' | 'portfolio' | 'products' | 'settings';
+export type TabName = 'dashboard' | 'portfolio' | 'products' | 'orders' | 'settings';
 
 // Category Names
 export type CategoryName = 'ilustrasi' | 'character' | 'branding' | 'editorial' | 'concept';

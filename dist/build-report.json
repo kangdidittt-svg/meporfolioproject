@@ -1,0 +1,149 @@
+{
+  "timestamp": "2025-08-07T00:19:25.368Z",
+  "config": {
+    "srcDir": "./src",
+    "distDir": "./dist",
+    "publicDir": "./",
+    "minify": true,
+    "sourceMaps": true,
+    "watch": false,
+    "serve": false
+  },
+  "files": [
+    {
+      "path": "admin-script.d.ts",
+      "size": "4.56KB",
+      "type": "ts"
+    },
+    {
+      "path": "admin-script.d.ts.map",
+      "size": "3.26KB",
+      "type": "map"
+    },
+    {
+      "path": "admin-script.js",
+      "size": "92.25KB",
+      "type": "js"
+    },
+    {
+      "path": "admin-script.js.map",
+      "size": "78.51KB",
+      "type": "map"
+    },
+    {
+      "path": "admin-script.min.js",
+      "size": "53.67KB",
+      "type": "js"
+    },
+    {
+      "path": "admin-script.min.js.map",
+      "size": "47.11KB",
+      "type": "map"
+    },
+    {
+      "path": "admin-styles.css",
+      "size": "44.18KB",
+      "type": "css"
+    },
+    {
+      "path": "admin.html",
+      "size": "37.14KB",
+      "type": "html"
+    },
+    {
+      "path": "index.html",
+      "size": "8.59KB",
+      "type": "html"
+    },
+    {
+      "path": "script.d.ts",
+      "size": "1.55KB",
+      "type": "ts"
+    },
+    {
+      "path": "script.d.ts.map",
+      "size": "1.21KB",
+      "type": "map"
+    },
+    {
+      "path": "script.js",
+      "size": "34.23KB",
+      "type": "js"
+    },
+    {
+      "path": "script.js.map",
+      "size": "26.60KB",
+      "type": "map"
+    },
+    {
+      "path": "script.min.js",
+      "size": "21.25KB",
+      "type": "js"
+    },
+    {
+      "path": "script.min.js.map",
+      "size": "17.13KB",
+      "type": "map"
+    },
+    {
+      "path": "styles.css",
+      "size": "18.43KB",
+      "type": "css"
+    },
+    {
+      "path": "sw.js",
+      "size": "1.00KB",
+      "type": "js"
+    },
+    {
+      "path": "types.d.ts",
+      "size": "4.76KB",
+      "type": "ts"
+    },
+    {
+      "path": "types.d.ts.map",
+      "size": "5.15KB",
+      "type": "map"
+    },
+    {
+      "path": "types.js",
+      "size": "0.41KB",
+      "type": "js"
+    },
+    {
+      "path": "types.js.map",
+      "size": "0.28KB",
+      "type": "map"
+    },
+    {
+      "path": "utils.d.ts",
+      "size": "4.15KB",
+      "type": "ts"
+    },
+    {
+      "path": "utils.d.ts.map",
+      "size": "4.16KB",
+      "type": "map"
+    },
+    {
+      "path": "utils.js",
+      "size": "13.95KB",
+      "type": "js"
+    },
+    {
+      "path": "utils.js.map",
+      "size": "14.22KB",
+      "type": "map"
+    },
+    {
+      "path": "utils.min.js",
+      "size": "6.71KB",
+      "type": "js"
+    },
+    {
+      "path": "utils.min.js.map",
+      "size": "9.40KB",
+      "type": "map"
+    }
+  ]
+}
